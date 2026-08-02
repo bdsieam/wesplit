@@ -1,0 +1,33 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Centered safe zone scale representation (inside 66dp area) -->
+    <!-- Scale Beam -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M 34 54 L 74 54 L 74 52 L 34 52 Z" />
+    <!-- Scale Stand/Base -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M 52 52 L 52 70 L 46 70 L 46 72 L 62 72 L 62 70 L 56 70 L 56 52 Z" />
+    <!-- Left Scale Pan -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M 34 54 L 28 66 L 40 66 Z" />
+    <!-- Right Scale Pan -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M 74 54 L 68 66 L 80 66 Z" />
+    <!-- Mini Coins falling in to represent splitting -->
+    <path
+        android:fillColor="#FFD54F"
+        android:pathData="M 44 38 A 4 4 0 1 1 44 30 A 4 4 0 1 1 44 38" />
+    <path
+        android:fillColor="#FFD54F"
+        android:pathData="M 54 34 A 4 4 0 1 1 54 26 A 4 4 0 1 1 54 34" />
+    <path
+        android:fillColor="#FFD54F"
+        android:pathData="M 64 38 A 4 4 0 1 1 64 30 A 4 4 0 1 1 64 38" />
+</vector>

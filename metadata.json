@@ -1,0 +1,6 @@
+{
+  "name": "WeXpense",
+  "description": "A beautiful, full-stack group expense manager and bill-splitting application with custom debt simplification.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
