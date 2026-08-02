@@ -147,12 +147,30 @@ fun MainExpenseAppScreen(
     val groups by viewModel.allGroups.collectAsState()
     val selectedGroup by viewModel.selectedGroup.collectAsState()
     val activeTab by viewModel.activeTab.collectAsState()
+    val userName by viewModel.userName.collectAsState()
+
+    val avatarInitials = remember(userName) {
+        if (userName.isNotBlank()) {
+            val parts = userName.trim().split("\\s+".toRegex())
+            if (parts.size >= 2) {
+                "${parts[0].take(1).uppercase()}${parts[1].take(1).uppercase()}"
+            } else {
+                userName.take(2).uppercase()
+            }
+        } else {
+            "U"
+        }
+    }
 
     var showAddGroupDialog by remember { mutableStateOf(false) }
+    var showEditGroupDialog by remember { mutableStateOf(false) }
     var showAddExpenseScreen by remember { mutableStateOf(false) }
     var editingExpense by remember { mutableStateOf<Expense?>(null) }
     var showProfileDialog by remember { mutableStateOf(false) }
     var showRestoreConfirmDialog by remember { mutableStateOf(false) }
+    var showCreateAccountDialog by remember { mutableStateOf(false) }
+    var expenseToDelete by remember { mutableStateOf<Expense?>(null) }
+    var groupToDelete by remember { mutableStateOf<com.example.data.BillingGroup?>(null) }
 
     // Support file export (backup)
     val exportLauncher = rememberLauncherForActivityResult(
@@ -492,18 +510,22 @@ fun MainExpenseAppScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = "JD",
+                                text = avatarInitials,
                                 color = Color.White,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 14.sp
                             )
                         }
                         if (activeTab == 0 && selectedGroup != null) {
-                            ExpenseOverflowMenu(viewModel) {
-                                // callback to add advanced payment prefilled
-                                editingExpense = null
-                                showAddExpenseScreen = true
-                            }
+                            ExpenseOverflowMenu(
+                                onAddAdvanced = {
+                                    editingExpense = null
+                                    showAddExpenseScreen = true
+                                },
+                                onEditGroup = {
+                                    showEditGroupDialog = true
+                                }
+                            )
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
@@ -595,6 +617,21 @@ fun MainExpenseAppScreen(
         )
     }
 
+    // Edit Group Dialog
+    if (showEditGroupDialog && selectedGroup != null) {
+        EditGroupDialog(
+            group = selectedGroup!!,
+            onDismiss = { showEditGroupDialog = false },
+            onSave = { name, desc, members ->
+                viewModel.updateBillingGroup(selectedGroup!!, name, desc, members)
+                showEditGroupDialog = false
+            },
+            onDelete = {
+                groupToDelete = selectedGroup
+            }
+        )
+    }
+
     // Add/Edit Expense Dialog Screen
     if (showAddExpenseScreen) {
         AddEditExpenseScreen(
@@ -610,15 +647,146 @@ fun MainExpenseAppScreen(
                 showAddExpenseScreen = false
             },
             onDelete = {
-                editingExpense?.let { viewModel.deleteExpense(it) }
-                showAddExpenseScreen = false
+                expenseToDelete = editingExpense
             }
+        )
+    }
+
+    // --- DELETE CONFIRMATION DIALOGS ---
+    if (expenseToDelete != null) {
+        AlertDialog(
+            onDismissRequest = { expenseToDelete = null },
+            title = { Text("Delete Expense", fontWeight = FontWeight.Bold, color = StatusRed) },
+            text = { Text("Are you sure you want to delete this expense? This action cannot be undone.") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        expenseToDelete?.let { viewModel.deleteExpense(it) }
+                        expenseToDelete = null
+                        showAddExpenseScreen = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = StatusRed)
+                ) {
+                    Text("Delete", color = Color.White)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { expenseToDelete = null }) {
+                    Text("Cancel", color = Color.Gray)
+                }
+            },
+            containerColor = SurfaceLight
+        )
+    }
+
+    if (groupToDelete != null) {
+        AlertDialog(
+            onDismissRequest = { groupToDelete = null },
+            title = { Text("Delete Billing Group", fontWeight = FontWeight.Bold, color = StatusRed) },
+            text = { Text("Are you sure you want to delete the group \"${groupToDelete!!.name}\"? This will permanently delete all expenses and split history in this group.") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        groupToDelete?.let { viewModel.deleteBillingGroup(it) }
+                        groupToDelete = null
+                        showEditGroupDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = StatusRed)
+                ) {
+                    Text("Delete", color = Color.White)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { groupToDelete = null }) {
+                    Text("Cancel", color = Color.Gray)
+                }
+            },
+            containerColor = SurfaceLight
         )
     }
 
     // Profile Details Dialog
     if (showProfileDialog) {
-        ProfileDialog(onDismiss = { showProfileDialog = false })
+        ProfileDialog(userName = userName, onDismiss = { showProfileDialog = false })
+    }
+
+    // Onboarding: Create Your Account Dialog
+    if (showCreateAccountDialog || userName.isBlank()) {
+        var tempName by remember { mutableStateOf("") }
+        androidx.compose.ui.platform.LocalFocusManager.current
+        Dialog(
+            onDismissRequest = { /* Force account setup */ }
+        ) {
+            Card(
+                colors = CardDefaults.cardColors(containerColor = SurfaceLight),
+                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier.padding(16.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(56.dp)
+                            .background(RoyalBlue.copy(alpha = 0.1f), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Person,
+                            contentDescription = "User icon",
+                            tint = RoyalBlue,
+                            modifier = Modifier.size(28.dp)
+                        )
+                    }
+
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = "Create Your Account",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 18.sp,
+                            color = RoyalBlue
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Please enter your name to get started.",
+                            fontSize = 12.sp,
+                            color = Color.Gray,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+
+                    OutlinedTextField(
+                        value = tempName,
+                        onValueChange = { tempName = it },
+                        label = { Text("Your Name") },
+                        placeholder = { Text("e.g. John Doe") },
+                        modifier = Modifier.fillMaxWidth().testTag("create_account_name_input"),
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = RoyalBlue,
+                            unfocusedBorderColor = Color.LightGray
+                        )
+                    )
+
+                    Button(
+                        onClick = {
+                            if (tempName.isNotBlank()) {
+                                viewModel.setUserName(tempName.trim())
+                                showCreateAccountDialog = false
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = RoyalBlue),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = tempName.isNotBlank()
+                    ) {
+                        Text("Save & Get Started", fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -668,18 +836,16 @@ fun EmptyGroupState(onAddGroup: () -> Unit) {
 // EXPENSE OVERFLOW MENU
 @Composable
 fun ExpenseOverflowMenu(
-    viewModel: ExpenseViewModel,
-    onAddAdvanced: () -> Unit
+    onAddAdvanced: () -> Unit,
+    onEditGroup: () -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
-    val sortOption by viewModel.sortOption.collectAsState()
-    val showFilter by viewModel.showCategoryFilter.collectAsState()
 
     Box {
         IconButton(onClick = { expanded = true }) {
             Icon(
                 imageVector = Icons.Default.MoreVert,
-                contentDescription = "Sort/Filter Options",
+                contentDescription = "Sort/Filter/Group Options",
                 tint = RoyalBlue
             )
         }
@@ -688,72 +854,18 @@ fun ExpenseOverflowMenu(
             onDismissRequest = { expanded = false },
             modifier = Modifier.background(SurfaceLight)
         ) {
-            Text(
-                text = "Sort by",
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Bold,
-                color = RoyalBlue,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
-            )
-            listOf(
-                "Date Desc" to "Latest First",
-                "Amount Desc" to "Highest Amount",
-                "Amount Asc" to "Lowest Amount",
-                "Description Asc" to "A-Z Description"
-            ).forEach { (opt, label) ->
-                DropdownMenuItem(
-                    text = { 
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(label, fontSize = 14.sp)
-                            if (sortOption == opt) {
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Icon(Icons.Default.Check, contentDescription = "Active", tint = RoyalBlue, modifier = Modifier.size(14.dp))
-                            }
-                        }
-                    },
-                    onClick = {
-                        viewModel.sortOption.value = opt
-                        expanded = false
-                    }
-                )
-            }
-
-            Text(
-                text = "Filter by Category",
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Bold,
-                color = RoyalBlue,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
-            )
-            listOf(
-                null to "Show All",
-                "Food" to "Food",
-                "Transport" to "Transport",
-                "Utilities" to "Utilities",
-                "Shopping" to "Shopping"
-            ).forEach { (cat, label) ->
-                DropdownMenuItem(
-                    text = {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(label, fontSize = 14.sp)
-                            if (showFilter == cat) {
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Icon(Icons.Default.Check, contentDescription = "Active", tint = RoyalBlue, modifier = Modifier.size(14.dp))
-                            }
-                        }
-                    },
-                    onClick = {
-                        viewModel.showCategoryFilter.value = cat
-                        expanded = false
-                    }
-                )
-            }
-
             DropdownMenuItem(
-                text = { Text("Add advanced payment", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = CoralAccent) },
+                text = { Text("Add advance payment", fontSize = 14.sp) },
                 onClick = {
                     expanded = false
                     onAddAdvanced()
+                }
+            )
+            DropdownMenuItem(
+                text = { Text("Edit Group", fontSize = 14.sp) },
+                onClick = {
+                    expanded = false
+                    onEditGroup()
                 }
             )
         }
@@ -2690,7 +2802,7 @@ fun AddGroupDialog(
 ) {
     var name by remember { mutableStateOf("") }
     var desc by remember { mutableStateOf("") }
-    var membersInput by remember { mutableStateOf("Sieam, Meraz, Tareq, Nehal") }
+    var membersInput by remember { mutableStateOf("") }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -2733,6 +2845,86 @@ fun AddGroupDialog(
                 colors = ButtonDefaults.buttonColors(containerColor = RoyalBlue)
             ) {
                 Text("Create")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel", color = Color.Gray)
+            }
+        },
+        containerColor = SurfaceLight
+    )
+}
+
+// --- 5B. EDIT GROUP DIALOG ---
+@Composable
+fun EditGroupDialog(
+    group: com.example.data.BillingGroup,
+    onDismiss: () -> Unit,
+    onSave: (name: String, desc: String, members: List<String>) -> Unit,
+    onDelete: () -> Unit
+) {
+    var name by remember { mutableStateOf(group.name) }
+    var desc by remember { mutableStateOf(group.description) }
+    var membersInput by remember { mutableStateOf(group.members.joinToString(", ")) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Edit Group Details / Members", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = RoyalBlue) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Group Name") },
+                    modifier = Modifier.fillMaxWidth().testTag("edit_group_name_input"),
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = desc,
+                    onValueChange = { desc = it },
+                    label = { Text("Description") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = membersInput,
+                    onValueChange = { membersInput = it },
+                    label = { Text("Members (comma separated list)") },
+                    placeholder = { Text("e.g. John, Alice, Bob") },
+                    modifier = Modifier.fillMaxWidth().testTag("edit_group_members_input")
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Button(
+                    onClick = onDelete,
+                    colors = ButtonDefaults.buttonColors(containerColor = StatusRed),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.fillMaxWidth().testTag("delete_group_button")
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = "Delete Group",
+                        tint = Color.White,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Delete Group", fontWeight = FontWeight.Bold, color = Color.White)
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    if (name.isNotBlank()) {
+                        val membersList = membersInput.split(",")
+                            .map { it.trim() }
+                            .filter { it.isNotBlank() }
+                        onSave(name, desc, membersList)
+                    }
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = RoyalBlue)
+            ) {
+                Text("Save Changes")
             }
         },
         dismissButton = {
@@ -3157,7 +3349,7 @@ fun AddEditExpenseScreen(
 
 // PROFILE DIALOG
 @Composable
-fun ProfileDialog(onDismiss: () -> Unit) {
+fun ProfileDialog(userName: String, onDismiss: () -> Unit) {
     Dialog(onDismissRequest = onDismiss) {
         Card(
             colors = CardDefaults.cardColors(containerColor = SurfaceLight),
@@ -3177,8 +3369,12 @@ fun ProfileDialog(onDismiss: () -> Unit) {
                     Icon(imageVector = Icons.Default.Person, contentDescription = "User", tint = Color.White, modifier = Modifier.size(36.dp))
                 }
                 Spacer(modifier = Modifier.height(16.dp))
-                Text("Sieam (You)", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = RoyalBlue)
-                Text("pranggols@gmail.com", fontSize = 13.sp, color = Color.Gray)
+                Text(if (userName.isNotBlank()) "$userName (You)" else "User (You)", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = RoyalBlue)
+                Text(
+                    text = if (userName.isNotBlank()) "${userName.lowercase().replace("\\s+".toRegex(), "")}@gmail.com" else "user@gmail.com",
+                    fontSize = 13.sp,
+                    color = Color.Gray
+                )
                 Spacer(modifier = Modifier.height(24.dp))
                 
                 Row(

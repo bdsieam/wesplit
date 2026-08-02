@@ -41,9 +41,16 @@ data class SettleInstruction(
 
 class ExpenseViewModel(application: Application) : AndroidViewModel(application) {
     private val repository: ExpenseRepository
+    private val prefs = application.getSharedPreferences("wexpense_prefs", android.content.Context.MODE_PRIVATE)
 
     val selectedGroupId = MutableStateFlow<Long?>(null)
     val expenses = MutableStateFlow<List<Expense>>(emptyList())
+    val userName = MutableStateFlow(prefs.getString("user_name", "") ?: "")
+
+    fun setUserName(name: String) {
+        prefs.edit().putString("user_name", name).apply()
+        userName.value = name
+    }
 
     init {
         val database = ExpenseDatabase.getDatabase(application)
@@ -244,6 +251,17 @@ class ExpenseViewModel(application: Application) : AndroidViewModel(application)
             if (selectedGroupId.value == null) {
                 selectedGroupId.value = newId
             }
+        }
+    }
+
+    fun updateBillingGroup(group: BillingGroup, name: String, description: String, members: List<String>) {
+        viewModelScope.launch {
+            val updated = group.copy(
+                name = name,
+                description = description.ifBlank { "No description" },
+                members = members
+            )
+            repository.updateGroup(updated)
         }
     }
 
