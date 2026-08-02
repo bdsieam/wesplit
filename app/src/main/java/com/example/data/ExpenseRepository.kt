@@ -12,6 +12,8 @@ class ExpenseRepository(private val dao: ExpenseDao) {
     suspend fun updateGroup(group: BillingGroup) = dao.updateGroup(group)
     
     suspend fun deleteGroup(group: BillingGroup) = dao.deleteGroup(group)
+    
+    suspend fun deleteExpensesForGroup(groupId: Long) = dao.deleteExpensesForGroup(groupId)
 
     fun getExpensesForGroup(groupId: Long): Flow<List<Expense>> = dao.getExpensesForGroup(groupId)
     

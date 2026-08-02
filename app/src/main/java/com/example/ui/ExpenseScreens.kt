@@ -171,6 +171,7 @@ fun MainExpenseAppScreen(
     var showEditGroupDialog by remember { mutableStateOf(false) }
     var showAddExpenseScreen by remember { mutableStateOf(false) }
     var editingExpense by remember { mutableStateOf<Expense?>(null) }
+    var isAdvancePaymentSelected by remember { mutableStateOf(false) }
     var showProfileDialog by remember { mutableStateOf(false) }
     var showRestoreConfirmDialog by remember { mutableStateOf(false) }
     var showCreateAccountDialog by remember { mutableStateOf(false) }
@@ -588,6 +589,7 @@ fun MainExpenseAppScreen(
                             ExpenseOverflowMenu(
                                 onAddAdvanced = {
                                     editingExpense = null
+                                    isAdvancePaymentSelected = true
                                     showAddExpenseScreen = true
                                 },
                                 onEditGroup = {
@@ -636,6 +638,7 @@ fun MainExpenseAppScreen(
                     FloatingActionButton(
                         onClick = {
                             editingExpense = null
+                            isAdvancePaymentSelected = false
                             showAddExpenseScreen = true
                         },
                         containerColor = RoyalBlue,
@@ -665,6 +668,7 @@ fun MainExpenseAppScreen(
                             viewModel = viewModel,
                             onEditExpense = { expense ->
                                 editingExpense = expense
+                                isAdvancePaymentSelected = expense.isAdvance
                                 showAddExpenseScreen = true
                             }
                         )
@@ -707,15 +711,20 @@ fun MainExpenseAppScreen(
     if (showAddExpenseScreen) {
         AddEditExpenseScreen(
             expense = editingExpense,
+            isAdvanceDefault = isAdvancePaymentSelected,
             groupMembers = selectedGroup?.members ?: emptyList(),
-            onDismiss = { showAddExpenseScreen = false },
-            onSave = { desc, amount, paidBy, date, isAll, splits, category, attachmentPath ->
+            onDismiss = { 
+                showAddExpenseScreen = false
+                isAdvancePaymentSelected = false
+            },
+            onSave = { desc, amount, paidBy, date, isAll, splits, category, attachmentPath, isAdv ->
                 if (editingExpense == null) {
-                    viewModel.addExpense(desc, amount, paidBy, date, isAll, splits, category, attachmentPath)
+                    viewModel.addExpense(desc, amount, paidBy, date, isAll, splits, category, attachmentPath, isAdv)
                 } else {
-                    viewModel.updateExpense(editingExpense!!.id, desc, amount, paidBy, date, isAll, splits, category, attachmentPath)
+                    viewModel.updateExpense(editingExpense!!.id, desc, amount, paidBy, date, isAll, splits, category, attachmentPath, isAdv)
                 }
                 showAddExpenseScreen = false
+                isAdvancePaymentSelected = false
             },
             onDelete = {
                 expenseToDelete = editingExpense
@@ -1036,12 +1045,17 @@ fun ExpenseItemCard(
     expense: Expense,
     onClick: () -> Unit
 ) {
-    val (categoryBgColor, categoryIconColor) = when (expense.category.lowercase()) {
-        "food" -> Pair(Color(0xFFE8EDFF), RoyalBlue)
-        "transport" -> Pair(Color(0xFFFFF0EB), CoralAccent)
-        "utilities" -> Pair(Color(0xFFE8EDFF), RoyalBlue)
-        "shopping" -> Pair(Color(0xFFFFF0EB), CoralAccent)
-        else -> Pair(Color(0xFFF1F3F9), TextSecondary)
+    val isAdvance = expense.isAdvance
+    val (categoryBgColor, categoryIconColor) = if (isAdvance) {
+        Pair(Color(0xFFFFF8E1), Color(0xFFFFB300))
+    } else {
+        when (expense.category.lowercase()) {
+            "food" -> Pair(Color(0xFFE8EDFF), RoyalBlue)
+            "transport" -> Pair(Color(0xFFFFF0EB), CoralAccent)
+            "utilities" -> Pair(Color(0xFFE8EDFF), RoyalBlue)
+            "shopping" -> Pair(Color(0xFFFFF0EB), CoralAccent)
+            else -> Pair(Color(0xFFF1F3F9), TextSecondary)
+        }
     }
 
     Card(
@@ -1050,9 +1064,9 @@ fun ExpenseItemCard(
             .padding(vertical = 4.dp)
             .clickable(onClick = onClick)
             .testTag("expense_card_${expense.id}"),
-        colors = CardDefaults.cardColors(containerColor = SurfaceLight),
+        colors = CardDefaults.cardColors(containerColor = if (isAdvance) Color(0xFFFFFDE7) else SurfaceLight),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
+        border = androidx.compose.foundation.BorderStroke(if (isAdvance) 1.5.dp else 1.dp, if (isAdvance) Color(0xFFFFB300) else BorderColor),
         shape = RoundedCornerShape(16.dp)
     ) {
         Row(
@@ -1068,12 +1082,16 @@ fun ExpenseItemCard(
                     .background(categoryBgColor, RoundedCornerShape(12.dp)),
                 contentAlignment = Alignment.Center
             ) {
-                val icon = when (expense.category.lowercase()) {
-                    "food" -> Icons.Default.ShoppingBag
-                    "transport" -> Icons.Default.TravelExplore
-                    "utilities" -> Icons.Default.CloudSync
-                    "shopping" -> Icons.Default.ShoppingBag
-                    else -> Icons.Default.Category
+                val icon = if (isAdvance) {
+                    Icons.Default.Check
+                } else {
+                    when (expense.category.lowercase()) {
+                        "food" -> Icons.Default.ShoppingBag
+                        "transport" -> Icons.Default.TravelExplore
+                        "utilities" -> Icons.Default.CloudSync
+                        "shopping" -> Icons.Default.ShoppingBag
+                        else -> Icons.Default.Category
+                    }
                 }
                 Icon(
                     imageVector = icon,
@@ -1086,10 +1104,34 @@ fun ExpenseItemCard(
             Spacer(modifier = Modifier.width(16.dp))
 
             Column(modifier = Modifier.weight(1f)) {
+                if (isAdvance) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .padding(bottom = 4.dp)
+                            .background(Color(0xFFFFB300).copy(alpha = 0.15f), RoundedCornerShape(4.dp))
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Check,
+                            contentDescription = "Advance Payment",
+                            tint = Color(0xFFE65100),
+                            modifier = Modifier.size(10.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "ADVANCE PAYMENT",
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFE65100),
+                            letterSpacing = 0.5.sp
+                        )
+                    }
+                }
                 Text(
                     text = expense.description,
                     fontSize = 16.sp,
-                    fontWeight = FontWeight.SemiBold,
+                    fontWeight = FontWeight.Bold,
                     color = TextPrimary
                 )
                 Spacer(modifier = Modifier.height(2.dp))
@@ -2287,7 +2329,11 @@ fun ExportPDFDialog(viewModel: ExpenseViewModel, onDismiss: () -> Unit) {
                 val filteredExpenses = if (selectedParticipantFilter == "All") {
                     expenses
                 } else {
-                    expenses.filter { it.paidBy in selectedMembers }
+                    expenses.filter { exp ->
+                        exp.paidBy in selectedMembers ||
+                        exp.splits.any { it.participantName in selectedMembers && it.isInvolved } ||
+                        (exp.isAllParticipants && group?.members?.any { it in selectedMembers } == true)
+                    }
                 }
                 val filteredTotal = filteredExpenses.sumOf { it.amount }
 
@@ -2690,7 +2736,11 @@ fun drawReportOnCanvas(
     val filteredTableExpenses = if (selectedList == null) {
         expenses
     } else {
-        expenses.filter { it.paidBy in selectedList }
+        expenses.filter { exp ->
+            exp.paidBy in selectedList ||
+            exp.splits.any { it.participantName in selectedList && it.isInvolved } ||
+            (exp.isAllParticipants && group?.members?.any { it in selectedList } == true)
+        }
     }
 
     // Determine Columns to show in Main Table
@@ -3506,7 +3556,11 @@ fun WebReportPreviewScreen(viewModel: ExpenseViewModel) {
             val filteredTableExpenses = if (selectedParticipantFilter == "All") {
                 expenses
             } else {
-                expenses.filter { it.paidBy == selectedParticipantFilter }
+                expenses.filter { exp ->
+                    exp.paidBy == selectedParticipantFilter ||
+                    exp.splits.any { it.participantName == selectedParticipantFilter && it.isInvolved } ||
+                    (exp.isAllParticipants && (group?.members?.contains(selectedParticipantFilter) == true))
+                }
             }
 
             Column(
@@ -3534,14 +3588,30 @@ fun WebReportPreviewScreen(viewModel: ExpenseViewModel) {
                     }
                 } else {
                     filteredTableExpenses.forEach { exp ->
+                        val rowBg = if (exp.isAdvance) Color(0xFFFFB300).copy(alpha = 0.08f) else Color.Transparent
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
+                                .background(rowBg)
                                 .padding(8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             if (showWhoPaid) Text(exp.paidBy, fontSize = 10.sp, color = TextPrimary, modifier = Modifier.weight(1f))
-                            Text(exp.description, fontSize = 10.sp, color = TextPrimary, modifier = Modifier.weight(1.5f))
+                            Row(modifier = Modifier.weight(1.5f), verticalAlignment = Alignment.CenterVertically) {
+                                Text(exp.description, fontSize = 10.sp, color = TextPrimary)
+                                if (exp.isAdvance) {
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        "ADVANCE",
+                                        fontSize = 7.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFFE65100),
+                                        modifier = Modifier
+                                            .background(Color(0xFFFFB300).copy(alpha = 0.2f), RoundedCornerShape(2.dp))
+                                            .padding(horizontal = 3.dp, vertical = 1.dp)
+                                    )
+                                }
+                            }
                             Text(formatAmount(exp.amount), fontSize = 10.sp, fontWeight = FontWeight.Bold, color = TextPrimary, modifier = Modifier.weight(1f))
                             if (showWhen) {
                                 val dStr = SimpleDateFormat("dd-MMM-yyyy", Locale.US).format(Date(exp.dateEpochMillis))
@@ -4119,6 +4189,7 @@ fun EditGroupDialog(
 @Composable
 fun AddEditExpenseScreen(
     expense: Expense?,
+    isAdvanceDefault: Boolean = false,
     groupMembers: List<String>,
     onDismiss: () -> Unit,
     onSave: (
@@ -4129,7 +4200,8 @@ fun AddEditExpenseScreen(
         isAll: Boolean,
         splits: List<ParticipantSplit>,
         category: String,
-        attachmentPath: String?
+        attachmentPath: String?,
+        isAdvance: Boolean
     ) -> Unit,
     onDelete: () -> Unit
 ) {
@@ -4141,6 +4213,7 @@ fun AddEditExpenseScreen(
     var dateMillis by remember { mutableStateOf(expense?.dateEpochMillis ?: System.currentTimeMillis()) }
     var isAllParticipants by remember { mutableStateOf(expense?.isAllParticipants ?: true) }
     var attachmentPath by remember { mutableStateOf(expense?.attachmentPath) }
+    var isAdvance by remember { mutableStateOf(expense?.isAdvance ?: isAdvanceDefault) }
 
     // Dropdowns
     var payerExpanded by remember { mutableStateOf(false) }
@@ -4237,7 +4310,8 @@ fun AddEditExpenseScreen(
                             isAllParticipants,
                             splits.toList(),
                             category,
-                            attachmentPath
+                            attachmentPath,
+                            isAdvance
                         )
                     }
                 },
@@ -4332,6 +4406,28 @@ fun AddEditExpenseScreen(
                         unfocusedBorderColor = Color.LightGray
                     )
                 )
+            }
+
+            // Advance Payment toggle row
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(1.dp, if (isAdvance) RoyalBlue.copy(alpha = 0.5f) else Color.LightGray, RoundedCornerShape(8.dp))
+                    .background(if (isAdvance) RoyalBlue.copy(alpha = 0.05f) else Color.Transparent)
+                    .clickable { isAdvance = !isAdvance }
+                    .padding(horizontal = 12.dp, vertical = 8.dp)
+            ) {
+                Checkbox(
+                    checked = isAdvance,
+                    onCheckedChange = { isAdvance = it },
+                    colors = CheckboxDefaults.colors(checkedColor = RoyalBlue)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Column {
+                    Text("Advance Payment", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = if (isAdvance) RoyalBlue else Color.Black)
+                    Text("Highlight this expense as an advance payment", fontSize = 12.sp, color = Color.Gray)
+                }
             }
 
             // Quick Toolbar Options Row (Attachment, Category, Date)

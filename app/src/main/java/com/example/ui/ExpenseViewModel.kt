@@ -61,14 +61,18 @@ class ExpenseViewModel(application: Application) : AndroidViewModel(application)
             prepopulateIfEmpty()
         }
 
-        // Collect expenses based on selectedGroupId safely
+        // Collect expenses based on selectedGroupId safely with job cancellation
+        var collectionJob: kotlinx.coroutines.Job? = null
         viewModelScope.launch {
             selectedGroupId.collect { id ->
+                collectionJob?.cancel()
                 if (id == null) {
                     expenses.value = emptyList()
                 } else {
-                    repository.getExpensesForGroup(id).collect {
-                        expenses.value = it
+                    collectionJob = viewModelScope.launch {
+                        repository.getExpensesForGroup(id).collect {
+                            expenses.value = it
+                        }
                     }
                 }
             }
@@ -267,6 +271,7 @@ class ExpenseViewModel(application: Application) : AndroidViewModel(application)
 
     fun deleteBillingGroup(group: BillingGroup) {
         viewModelScope.launch {
+            repository.deleteExpensesForGroup(group.id)
             repository.deleteGroup(group)
             if (selectedGroupId.value == group.id) {
                 // fallback to another group or null
@@ -288,7 +293,8 @@ class ExpenseViewModel(application: Application) : AndroidViewModel(application)
         isAll: Boolean,
         splits: List<ParticipantSplit>,
         category: String,
-        attachmentPath: String? = null
+        attachmentPath: String? = null,
+        isAdvance: Boolean = false
     ) {
         val groupId = selectedGroupId.value ?: return
         viewModelScope.launch {
@@ -301,7 +307,8 @@ class ExpenseViewModel(application: Application) : AndroidViewModel(application)
                 isAllParticipants = isAll,
                 splits = splits,
                 category = category,
-                attachmentPath = attachmentPath
+                attachmentPath = attachmentPath,
+                isAdvance = isAdvance
             )
             repository.insertExpense(expense)
         }
@@ -340,7 +347,8 @@ class ExpenseViewModel(application: Application) : AndroidViewModel(application)
         isAll: Boolean,
         splits: List<ParticipantSplit>,
         category: String,
-        attachmentPath: String? = null
+        attachmentPath: String? = null,
+        isAdvance: Boolean = false
     ) {
         val groupId = selectedGroupId.value ?: return
         viewModelScope.launch {
@@ -354,7 +362,8 @@ class ExpenseViewModel(application: Application) : AndroidViewModel(application)
                 isAllParticipants = isAll,
                 splits = splits,
                 category = category,
-                attachmentPath = attachmentPath
+                attachmentPath = attachmentPath,
+                isAdvance = isAdvance
             )
             repository.updateExpense(expense)
         }
@@ -410,6 +419,7 @@ class ExpenseViewModel(application: Application) : AndroidViewModel(application)
             eObj.put("dateEpochMillis", e.dateEpochMillis)
             eObj.put("isAllParticipants", e.isAllParticipants)
             eObj.put("category", e.category)
+            eObj.put("isAdvance", e.isAdvance)
             eObj.put("attachmentPath", e.attachmentPath ?: JSONObject.NULL)
 
             val splitsArr = JSONArray()
@@ -485,7 +495,8 @@ class ExpenseViewModel(application: Application) : AndroidViewModel(application)
                         isAllParticipants = eObj.optBoolean("isAllParticipants", true),
                         splits = splits,
                         category = eObj.optString("category", "Other"),
-                        attachmentPath = attachment
+                        attachmentPath = attachment,
+                        isAdvance = eObj.optBoolean("isAdvance", false)
                     )
                 )
             }

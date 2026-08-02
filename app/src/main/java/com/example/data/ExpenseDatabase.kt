@@ -46,7 +46,8 @@ data class Expense(
     val isAllParticipants: Boolean,
     val splits: List<ParticipantSplit>,
     val category: String = "Other",
-    val attachmentPath: String? = null
+    val attachmentPath: String? = null,
+    val isAdvance: Boolean = false
 )
 
 // 2. Room Type Converters
@@ -129,6 +130,9 @@ interface ExpenseDao {
     @Delete
     suspend fun deleteGroup(group: BillingGroup)
 
+    @Query("DELETE FROM expenses WHERE groupId = :groupId")
+    suspend fun deleteExpensesForGroup(groupId: Long)
+
     @Query("SELECT * FROM expenses WHERE groupId = :groupId ORDER BY dateEpochMillis DESC, id DESC")
     fun getExpensesForGroup(groupId: Long): Flow<List<Expense>>
 
@@ -156,7 +160,7 @@ interface ExpenseDao {
 
 // 4. Room Database
 
-@Database(entities = [BillingGroup::class, Expense::class], version = 1, exportSchema = false)
+@Database(entities = [BillingGroup::class, Expense::class], version = 2, exportSchema = false)
 @TypeConverters(Converters::class)
 abstract class ExpenseDatabase : RoomDatabase() {
     abstract fun expenseDao(): ExpenseDao
