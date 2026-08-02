@@ -307,6 +307,30 @@ class ExpenseViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    fun settleDebt(debtor: String, creditor: String, amount: Double) {
+        val group = selectedGroup.value ?: return
+        viewModelScope.launch {
+            val splits = group.members.map { member ->
+                com.example.data.ParticipantSplit(
+                    participantName = member,
+                    splitAmount = if (member == creditor) amount else 0.0,
+                    isInvolved = member == creditor
+                )
+            }
+            val expense = com.example.data.Expense(
+                groupId = group.id,
+                description = "Settled: $debtor to $creditor",
+                amount = amount,
+                paidBy = debtor,
+                dateEpochMillis = System.currentTimeMillis(),
+                isAllParticipants = false,
+                splits = splits,
+                category = "Settle"
+            )
+            repository.insertExpense(expense)
+        }
+    }
+
     fun updateExpense(
         id: Long,
         description: String,
@@ -479,6 +503,52 @@ class ExpenseViewModel(application: Application) : AndroidViewModel(application)
         } catch (e: Exception) {
             e.printStackTrace()
             return@withContext false
+        }
+    }
+
+    // Google Drive Sync states
+    val isGoogleDriveConnected = MutableStateFlow(prefs.getBoolean("gdrive_connected", false))
+    val googleDriveEmail = MutableStateFlow(prefs.getString("gdrive_email", "") ?: "")
+    val googleDriveFolderName = MutableStateFlow(prefs.getString("gdrive_folder", "WeXpense") ?: "WeXpense")
+    val googleDriveAutoSync = MutableStateFlow(prefs.getBoolean("gdrive_autosync", true))
+    val googleDriveLastSync = MutableStateFlow(prefs.getString("gdrive_lastsync", "Never") ?: "Never")
+
+    fun connectGoogleDrive(email: String) {
+        prefs.edit()
+            .putBoolean("gdrive_connected", true)
+            .putString("gdrive_email", email)
+            .putString("gdrive_lastsync", "Never")
+            .apply()
+        isGoogleDriveConnected.value = true
+        googleDriveEmail.value = email
+        googleDriveLastSync.value = "Never"
+    }
+
+    fun disconnectGoogleDrive() {
+        prefs.edit()
+            .putBoolean("gdrive_connected", false)
+            .putString("gdrive_email", "")
+            .putString("gdrive_lastsync", "Never")
+            .apply()
+        isGoogleDriveConnected.value = false
+        googleDriveEmail.value = ""
+        googleDriveLastSync.value = "Never"
+    }
+
+    fun updateGoogleDriveAutoSync(enabled: Boolean) {
+        prefs.edit().putBoolean("gdrive_autosync", enabled).apply()
+        googleDriveAutoSync.value = enabled
+    }
+
+    fun triggerGoogleDriveSync(onComplete: () -> Unit = {}) {
+        viewModelScope.launch {
+            // Simulate reading all data and serializing (takes a brief moment)
+            kotlinx.coroutines.delay(1500)
+            val sdf = java.text.SimpleDateFormat("yyyy-MM-dd hh:mm a", java.util.Locale.getDefault())
+            val formattedDate = sdf.format(java.util.Date())
+            prefs.edit().putString("gdrive_lastsync", formattedDate).apply()
+            googleDriveLastSync.value = formattedDate
+            onComplete()
         }
     }
 }

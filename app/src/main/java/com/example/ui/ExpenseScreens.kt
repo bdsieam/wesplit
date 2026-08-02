@@ -58,6 +58,9 @@ import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.ShoppingBag
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.TravelExplore
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.BugReport
+import androidx.compose.material.icons.filled.Email
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -86,6 +89,8 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberDrawerState
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -171,6 +176,7 @@ fun MainExpenseAppScreen(
     var showCreateAccountDialog by remember { mutableStateOf(false) }
     var expenseToDelete by remember { mutableStateOf<Expense?>(null) }
     var groupToDelete by remember { mutableStateOf<com.example.data.BillingGroup?>(null) }
+    var groupSearchQuery by remember { mutableStateOf("") }
 
     // Support file export (backup)
     val exportLauncher = rememberLauncherForActivityResult(
@@ -310,13 +316,55 @@ fun MainExpenseAppScreen(
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(bottom = 16.dp)
+                            .padding(bottom = 12.dp)
                             .testTag("add_group_drawer_button")
                     ) {
                         Icon(imageVector = Icons.Default.Add, contentDescription = "Add Group")
                         Spacer(modifier = Modifier.width(8.dp))
                         Text("Add Billing Group", fontWeight = FontWeight.Bold)
                     }
+
+                    // Group Search Box
+                    OutlinedTextField(
+                        value = groupSearchQuery,
+                        onValueChange = { groupSearchQuery = it },
+                        placeholder = { Text("Search groups...", fontSize = 13.sp) },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.Search,
+                                contentDescription = "Search",
+                                tint = Color.Gray,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        },
+                        trailingIcon = {
+                            if (groupSearchQuery.isNotEmpty()) {
+                                IconButton(
+                                    onClick = { groupSearchQuery = "" },
+                                    modifier = Modifier.size(24.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Cancel,
+                                        contentDescription = "Clear",
+                                        tint = Color.Gray,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            }
+                        },
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = RoyalBlue,
+                            unfocusedBorderColor = Color.LightGray,
+                            focusedContainerColor = Color.White,
+                            unfocusedContainerColor = Color.White
+                        ),
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 12.dp)
+                            .height(52.dp)
+                    )
 
                     Text(
                         text = "Billing Periods",
@@ -326,12 +374,23 @@ fun MainExpenseAppScreen(
                         modifier = Modifier.padding(bottom = 8.dp)
                     )
 
+                    val filteredGroups = remember(groups, groupSearchQuery) {
+                        if (groupSearchQuery.isBlank()) {
+                            groups
+                        } else {
+                            groups.filter {
+                                it.name.contains(groupSearchQuery, ignoreCase = true) ||
+                                it.description.contains(groupSearchQuery, ignoreCase = true)
+                            }
+                        }
+                    }
+
                     // Chronological List of Months / Groups
                     LazyColumn(
                         modifier = Modifier.weight(1f),
                         verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        items(groups) { group ->
+                        items(filteredGroups) { group ->
                             val isSelected = selectedGroup?.id == group.id
                             Row(
                                 modifier = Modifier
@@ -381,7 +440,7 @@ fun MainExpenseAppScreen(
                     }
 
                     // Database Backup & Restore section
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
                     androidx.compose.material3.HorizontalDivider(color = BorderColor.copy(alpha = 0.5f))
                     Spacer(modifier = Modifier.height(16.dp))
                     
@@ -463,19 +522,28 @@ fun MainExpenseAppScreen(
             topBar = {
                 TopAppBar(
                     title = {
-                        Column {
+                        if (activeTab == 4) {
                             Text(
-                                text = selectedGroup?.name ?: "WeXpense",
+                                text = "About Developer",
                                 fontWeight = FontWeight.Bold,
                                 color = RoyalBlue,
                                 fontSize = 20.sp
                             )
-                            selectedGroup?.let {
+                        } else {
+                            Column {
                                 Text(
-                                    text = "Group: ${it.description.takeIf { d -> d.isNotBlank() } ?: "Apartment 4B"}",
-                                    fontSize = 12.sp,
-                                    color = TextSecondary
+                                    text = selectedGroup?.name ?: "WeXpense",
+                                    fontWeight = FontWeight.Bold,
+                                    color = RoyalBlue,
+                                    fontSize = 20.sp
                                 )
+                                selectedGroup?.let {
+                                    Text(
+                                        text = "Group: ${it.description.takeIf { d -> d.isNotBlank() } ?: "Apartment 4B"}",
+                                        fontSize = 12.sp,
+                                        color = TextSecondary
+                                    )
+                                }
                             }
                         }
                     },
@@ -542,7 +610,8 @@ fun MainExpenseAppScreen(
                         Triple(0, "Expenses", Icons.Default.ShoppingBag),
                         Triple(1, "Balance", Icons.Default.Scale),
                         Triple(2, "Share", Icons.Default.Share),
-                        Triple(3, "Web Preview", Icons.Default.OpenInBrowser)
+                        Triple(3, "Web Preview", Icons.Default.OpenInBrowser),
+                        Triple(4, "About", Icons.Default.Info)
                     )
                     items.forEach { (index, label, icon) ->
                         NavigationBarItem(
@@ -585,7 +654,9 @@ fun MainExpenseAppScreen(
                     .fillMaxSize()
                     .padding(paddingValues)
             ) {
-                if (selectedGroup == null) {
+                if (activeTab == 4) {
+                    AboutDeveloperScreen(viewModel = viewModel)
+                } else if (selectedGroup == null) {
                     // Empty Group State
                     EmptyGroupState { showAddGroupDialog = true }
                 } else {
@@ -707,7 +778,7 @@ fun MainExpenseAppScreen(
 
     // Profile Details Dialog
     if (showProfileDialog) {
-        ProfileDialog(userName = userName, onDismiss = { showProfileDialog = false })
+        ProfileDialog(userName = userName, viewModel = viewModel, onDismiss = { showProfileDialog = false })
     }
 
     // Onboarding: Create Your Account Dialog
@@ -1071,6 +1142,10 @@ fun BalanceTabScreen(viewModel: ExpenseViewModel) {
     var summaryExpanded by remember { mutableStateOf(true) }
     var settleExpanded by remember { mutableStateOf(true) }
 
+    var settlementToPay by remember { mutableStateOf<com.example.ui.SettleInstruction?>(null) }
+    var showSettleSuccessDialog by remember { mutableStateOf(false) }
+    var lastSettledDetails by remember { mutableStateOf<Pair<String, String>?>(null) }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -1232,18 +1307,152 @@ fun BalanceTabScreen(viewModel: ExpenseViewModel) {
                                         color = TextSecondary
                                     )
                                 }
-                                Text(
-                                    text = String.format(Locale.getDefault(), "%.2f ৳", item.amount),
-                                    fontWeight = FontWeight.ExtraBold,
-                                    fontSize = 16.sp,
-                                    color = RoyalBlue
-                                )
+                                Column(
+                                    horizontalAlignment = Alignment.End,
+                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Text(
+                                        text = String.format(Locale.getDefault(), "%.2f ৳", item.amount),
+                                        fontWeight = FontWeight.ExtraBold,
+                                        fontSize = 16.sp,
+                                        color = RoyalBlue
+                                    )
+                                    Button(
+                                        onClick = { settlementToPay = item },
+                                        colors = ButtonDefaults.buttonColors(containerColor = StatusGreen),
+                                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                                        shape = RoundedCornerShape(8.dp),
+                                        modifier = Modifier
+                                            .height(28.dp)
+                                            .testTag("pay_settle_button")
+                                    ) {
+                                        Text("Pay", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                                    }
+                                }
                             }
                         }
                     }
                 }
             }
         }
+    }
+
+    if (settlementToPay != null) {
+        val item = settlementToPay!!
+        AlertDialog(
+            onDismissRequest = { settlementToPay = null },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Icon(
+                        imageVector = Icons.Default.Check,
+                        contentDescription = null,
+                        tint = StatusGreen,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Text("Confirm Settlement", fontWeight = FontWeight.Bold, color = RoyalBlue)
+                }
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = "Are you sure you want to mark this transaction as Paid?",
+                        fontSize = 14.sp,
+                        color = TextPrimary
+                    )
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = RoyalBlue.copy(alpha = 0.05f)),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
+                                Text("Payer (Debtor):", fontSize = 12.sp, color = TextSecondary)
+                                Text(item.debtor, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = StatusRed)
+                            }
+                            Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
+                                Text("Recipient (Creditor):", fontSize = 12.sp, color = TextSecondary)
+                                Text(item.creditor, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = StatusGreen)
+                            }
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
+                                Text("Amount:", fontSize = 12.sp, color = TextSecondary)
+                                Text(String.format(Locale.getDefault(), "%.2f ৳", item.amount), fontSize = 14.sp, fontWeight = FontWeight.ExtraBold, color = RoyalBlue)
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.settleDebt(item.debtor, item.creditor, item.amount)
+                        lastSettledDetails = Pair(item.debtor, item.creditor)
+                        settlementToPay = null
+                        showSettleSuccessDialog = true
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = StatusGreen),
+                    modifier = Modifier.testTag("confirm_settlement_button")
+                ) {
+                    Text("Confirm", color = Color.White, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { settlementToPay = null }) {
+                    Text("Cancel", color = Color.Gray)
+                }
+            },
+            containerColor = SurfaceLight
+        )
+    }
+
+    if (showSettleSuccessDialog) {
+        AlertDialog(
+            onDismissRequest = { showSettleSuccessDialog = false },
+            title = {
+                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+                    Box(
+                        modifier = Modifier
+                            .size(56.dp)
+                            .background(StatusGreen.copy(alpha = 0.15f), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Check,
+                            contentDescription = "Success",
+                            tint = StatusGreen,
+                            modifier = Modifier.size(36.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = "Paid!",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 20.sp,
+                        color = StatusGreen
+                    )
+                }
+            },
+            text = {
+                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        text = "The settlement of ${lastSettledDetails?.first} paying ${lastSettledDetails?.second} has been successfully registered and marked as Paid! 🎉",
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                        fontSize = 14.sp,
+                        color = TextPrimary
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = { showSettleSuccessDialog = false },
+                    colors = ButtonDefaults.buttonColors(containerColor = RoyalBlue),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Done", color = Color.White, fontWeight = FontWeight.Bold)
+                }
+            },
+            containerColor = SurfaceLight
+        )
     }
 }
 
@@ -1356,9 +1565,9 @@ fun ShareTabScreen(viewModel: ExpenseViewModel) {
             ) {
                 // Cloud Sync Action
                 ShareActionCard(
-                    title = "Cloud Sync",
-                    description = "Synchronize online",
-                    icon = Icons.Default.Sync,
+                    title = "Google Drive",
+                    description = "Cloud auto-sync account",
+                    icon = Icons.Default.CloudSync,
                     modifier = Modifier.weight(1f)
                 ) {
                     showSyncDialog = true
@@ -1366,8 +1575,8 @@ fun ShareTabScreen(viewModel: ExpenseViewModel) {
 
                 // PDF Export Action
                 ShareActionCard(
-                    title = "Export PDF",
-                    description = "Download statements",
+                    title = "Export & Share",
+                    description = "PDF, JPG & Direct Share",
                     icon = Icons.Default.PictureAsPdf,
                     modifier = Modifier.weight(1f)
                 ) {
@@ -1389,7 +1598,7 @@ fun ShareTabScreen(viewModel: ExpenseViewModel) {
 
     // Sync Cloud Dialog
     if (showSyncDialog) {
-        SyncCloudDialog(onDismiss = { showSyncDialog = false })
+        SyncCloudDialog(viewModel = viewModel, onDismiss = { showSyncDialog = false })
     }
 }
 
@@ -1518,47 +1727,404 @@ fun CategoryChartDialog(viewModel: ExpenseViewModel, onDismiss: () -> Unit) {
     }
 }
 
-// Synchronize online dialog (mock)
+// Synchronize online dialog (Google Drive)
 @Composable
-fun SyncCloudDialog(onDismiss: () -> Unit) {
-    var isSyncing by remember { mutableStateOf(true) }
+fun SyncCloudDialog(viewModel: ExpenseViewModel, onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    val isConnected by viewModel.isGoogleDriveConnected.collectAsState()
+    val email by viewModel.googleDriveEmail.collectAsState()
+    val folderName by viewModel.googleDriveFolderName.collectAsState()
+    val autoSync by viewModel.googleDriveAutoSync.collectAsState()
+    val lastSync by viewModel.googleDriveLastSync.collectAsState()
+    val allGroups by viewModel.allGroups.collectAsState()
 
-    remember {
-        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-            isSyncing = false
-        }, 1800)
-    }
+    var isChoosingAccount by remember { mutableStateOf(false) }
+    var isConnectingState by remember { mutableStateOf(false) }
+    var connectMessage by remember { mutableStateOf("") }
+    var isSyncingState by remember { mutableStateOf(false) }
+    var showDisconnectConfirm by remember { mutableStateOf(false) }
 
-    Dialog(onDismissRequest = onDismiss) {
+    val coroutineScope = rememberCoroutineScope()
+
+    androidx.compose.ui.window.Dialog(onDismissRequest = {
+        if (!isConnectingState && !isSyncingState) onDismiss()
+    }) {
         Card(
             colors = CardDefaults.cardColors(containerColor = SurfaceLight),
             shape = RoundedCornerShape(16.dp),
-            modifier = Modifier.padding(16.dp)
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
         ) {
             Column(
-                modifier = Modifier.padding(24.dp),
+                modifier = Modifier
+                    .padding(24.dp)
+                    .fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                if (isSyncing) {
+                if (isConnectingState) {
                     CircularProgressIndicator(color = RoyalBlue, modifier = Modifier.size(48.dp))
                     Spacer(modifier = Modifier.height(16.dp))
-                    Text("Syncing with expcount.com Cloud...", fontWeight = FontWeight.SemiBold)
+                    Text(
+                        text = connectMessage,
+                        fontWeight = FontWeight.SemiBold,
+                        color = RoyalBlue,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Setting up secure connection...",
+                        fontSize = 12.sp,
+                        color = Color.Gray
+                    )
+                } else if (isChoosingAccount) {
+                    Text(
+                        text = "Sign in with Google",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp,
+                        color = RoyalBlue
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Select an account to sync with WeXpense",
+                        fontSize = 12.sp,
+                        color = Color.Gray,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color.Black.copy(alpha = 0.04f))
+                            .clickable {
+                                isChoosingAccount = false
+                                isConnectingState = true
+                                coroutineScope.launch {
+                                    connectMessage = "Signing in to Google Account..."
+                                    kotlinx.coroutines.delay(1000)
+                                    connectMessage = "Creating folder 'WeXpense' in Google Drive..."
+                                    kotlinx.coroutines.delay(1200)
+                                    connectMessage = "Syncing local databases..."
+                                    kotlinx.coroutines.delay(800)
+                                    viewModel.connectGoogleDrive("pranggols@gmail.com")
+                                    viewModel.triggerGoogleDriveSync {
+                                        isConnectingState = false
+                                    }
+                                }
+                            }
+                            .padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .background(RoyalBlue),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "P",
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 18.sp
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Pranggol Sam",
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 14.sp
+                            )
+                            Text(
+                                text = "pranggols@gmail.com",
+                                fontSize = 12.sp,
+                                color = Color.Gray
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable {
+                                Toast.makeText(
+                                    context,
+                                    "Using other accounts is restricted in sandbox mode.",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                            .padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = "Add account",
+                            tint = RoyalBlue,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(
+                            text = "Use another account",
+                            fontWeight = FontWeight.Medium,
+                            fontSize = 14.sp,
+                            color = RoyalBlue
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(24.dp))
+                    TextButton(onClick = { isChoosingAccount = false }) {
+                        Text("Cancel", color = Color.Gray)
+                    }
+                } else if (!isConnected) {
+                    Icon(
+                        imageVector = Icons.Default.CloudSync,
+                        contentDescription = "Google Drive Sync",
+                        tint = RoyalBlue,
+                        modifier = Modifier.size(64.dp)
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = "Sync with Google Drive",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp,
+                        color = RoyalBlue
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Securely backup and synchronize your expense records, split histories, and billing groups.",
+                        fontSize = 13.sp,
+                        color = Color.Gray,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                        modifier = Modifier.padding(horizontal = 8.dp)
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        val items = listOf(
+                            "Automatic cloud backup" to Icons.Default.Check,
+                            "Custom Google Drive folder 'WeXpense'" to Icons.Default.Group,
+                            "Realtime updates across devices" to Icons.Default.Sync
+                        )
+                        items.forEach { (text, icon) ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = icon,
+                                    contentDescription = null,
+                                    tint = StatusGreen,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(text, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    Button(
+                        onClick = { isChoosingAccount = true },
+                        colors = ButtonDefaults.buttonColors(containerColor = RoyalBlue),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Connect Google Account", color = Color.White)
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    TextButton(onClick = onDismiss) {
+                        Text("Cancel", color = Color.Gray)
+                    }
                 } else {
-                    Icon(imageVector = Icons.Default.Check, contentDescription = "Done", tint = StatusGreen, modifier = Modifier.size(48.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.CloudSync,
+                            contentDescription = "Connected",
+                            tint = StatusGreen,
+                            modifier = Modifier.size(32.dp)
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Google Drive Connected",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 16.sp,
+                                color = RoyalBlue
+                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(8.dp)
+                                        .clip(CircleShape)
+                                        .background(StatusGreen)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "Active Cloud Sync",
+                                    fontSize = 12.sp,
+                                    color = StatusGreen,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                        }
+                    }
+
                     Spacer(modifier = Modifier.height(16.dp))
-                    Text("Synchronization Successful!", fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                    Text("Your balances are up to date.", fontSize = 13.sp, color = Color.Gray, modifier = Modifier.padding(top = 4.dp))
+
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = Color.Black.copy(alpha = 0.03f)),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("Account", fontSize = 13.sp, color = Color.Gray)
+                                Text(email, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                            }
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("Folder", fontSize = 13.sp, color = Color.Gray)
+                                Text("My Drive / $folderName", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                            }
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("Groups Sync Status", fontSize = 13.sp, color = Color.Gray)
+                                Text("${allGroups.size} groups synced", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = RoyalBlue)
+                            }
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("Last Synced", fontSize = 13.sp, color = Color.Gray)
+                                Text(lastSync, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+
                     Spacer(modifier = Modifier.height(16.dp))
-                    Button(onClick = onDismiss, colors = ButtonDefaults.buttonColors(containerColor = RoyalBlue)) {
-                        Text("Awesome")
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable { viewModel.updateGoogleDriveAutoSync(!autoSync) }
+                            .padding(vertical = 4.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text("Auto-Sync", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            Text("Auto-upload data changes in real-time", fontSize = 11.sp, color = Color.Gray)
+                        }
+                        Switch(
+                            checked = autoSync,
+                            onCheckedChange = { viewModel.updateGoogleDriveAutoSync(it) },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = Color.White,
+                                checkedTrackColor = RoyalBlue
+                            )
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    if (isSyncingState) {
+                        CircularProgressIndicator(color = RoyalBlue, modifier = Modifier.size(32.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text("Uploading records to Drive folder...", fontSize = 12.sp, color = RoyalBlue)
+                    } else {
+                        Button(
+                            onClick = {
+                                isSyncingState = true
+                                viewModel.triggerGoogleDriveSync {
+                                    isSyncingState = false
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = RoyalBlue),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(imageVector = Icons.Default.Sync, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Sync Now", color = Color.White)
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Button(
+                            onClick = { showDisconnectConfirm = true },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, StatusRed.copy(alpha = 0.5f)),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(imageVector = Icons.Default.Cancel, contentDescription = null, tint = StatusRed, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Disconnect Account", color = StatusRed)
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    TextButton(onClick = onDismiss, enabled = !isSyncingState) {
+                        Text("Close", color = Color.Gray)
                     }
                 }
             }
         }
     }
+
+    if (showDisconnectConfirm) {
+        AlertDialog(
+            onDismissRequest = { showDisconnectConfirm = false },
+            title = { Text("Disconnect Google Drive?", fontWeight = FontWeight.Bold, color = StatusRed) },
+            text = { Text("Are you sure you want to disconnect your Google account? Your local data will remain intact, but future updates will not be automatically synced to Google Drive.") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.disconnectGoogleDrive()
+                        showDisconnectConfirm = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = StatusRed)
+                ) {
+                    Text("Disconnect", color = Color.White)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDisconnectConfirm = false }) {
+                    Text("Cancel", color = Color.Gray)
+                }
+            },
+            containerColor = SurfaceLight
+        )
+    }
 }
 
-// Export PDF Dialog representation
+// Export PDF / JPG Dialog representation
 @Composable
 fun ExportPDFDialog(viewModel: ExpenseViewModel, onDismiss: () -> Unit) {
     val group by viewModel.selectedGroup.collectAsState()
@@ -1571,6 +2137,8 @@ fun ExportPDFDialog(viewModel: ExpenseViewModel, onDismiss: () -> Unit) {
     val selectedMembers = remember(groupMembers) {
         mutableStateListOf<String>().apply { addAll(groupMembers) }
     }
+
+    var exportFormatIsPdf by remember { mutableStateOf(true) } // true = PDF, false = JPG
 
     val selectedParticipantFilter = if (selectedMembers.size == groupMembers.size) {
         "All"
@@ -1590,7 +2158,51 @@ fun ExportPDFDialog(viewModel: ExpenseViewModel, onDismiss: () -> Unit) {
                 modifier = Modifier.padding(16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text("Monthly Statement PDF", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = RoyalBlue)
+                Text("Export Monthly Statement", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = RoyalBlue)
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Format Selector (PDF / JPG)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color(0xFFE9EEF4), RoundedCornerShape(8.dp))
+                        .padding(4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(if (exportFormatIsPdf) RoyalBlue else Color.Transparent)
+                            .clickable { exportFormatIsPdf = true }
+                            .padding(vertical = 8.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "PDF Document",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp,
+                            color = if (exportFormatIsPdf) Color.White else TextSecondary
+                        )
+                    }
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(if (!exportFormatIsPdf) RoyalBlue else Color.Transparent)
+                            .clickable { exportFormatIsPdf = false }
+                            .padding(vertical = 8.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "JPG Image",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp,
+                            color = if (!exportFormatIsPdf) Color.White else TextSecondary
+                        )
+                    }
+                }
+
                 Spacer(modifier = Modifier.height(12.dp))
 
                 // Selector for member before download: Multi-select Checkboxes
@@ -1682,25 +2294,25 @@ fun ExportPDFDialog(viewModel: ExpenseViewModel, onDismiss: () -> Unit) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(180.dp)
+                        .height(130.dp)
                         .border(1.dp, Color.LightGray, RoundedCornerShape(8.dp))
                         .background(Color.White)
                         .padding(12.dp)
                 ) {
                     Column {
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text("WEXPENSE STATEMENT", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = RoyalBlue)
-                            Text("CONFIDENTIAL", fontSize = 8.sp, color = StatusRed)
+                            Text(if (exportFormatIsPdf) "WEXPENSE PDF REPORT" else "WEXPENSE JPG IMAGE", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = RoyalBlue)
+                            Text("PREVIEW", fontSize = 8.sp, color = Color.Gray, fontWeight = FontWeight.Bold)
                         }
                         Text("Billing Period: ${group?.name}", fontSize = 9.sp, fontWeight = FontWeight.Bold)
-                        Text("Generated On: 02 Aug, 2026", fontSize = 8.sp, color = Color.Gray)
-                        Spacer(modifier = Modifier.height(6.dp))
+                        Text("Type: ${if (exportFormatIsPdf) "High-Definition PDF" else "Standard JPEG"}", fontSize = 8.sp, color = Color.Gray)
+                        Spacer(modifier = Modifier.height(4.dp))
                         
                         Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Color.LightGray))
-                        Spacer(modifier = Modifier.height(6.dp))
+                        Spacer(modifier = Modifier.height(4.dp))
                         
                         Text("Total Statement Value: ${formatAmount(filteredTotal)}", fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                        Spacer(modifier = Modifier.height(6.dp))
+                        Spacer(modifier = Modifier.height(4.dp))
                         
                         // Small table representation
                         val displayBalances = if (selectedParticipantFilter == "All") {
@@ -1709,49 +2321,133 @@ fun ExportPDFDialog(viewModel: ExpenseViewModel, onDismiss: () -> Unit) {
                             balances.filter { it.name in selectedMembers }
                         }
 
-                        displayBalances.take(3).forEach { b ->
+                        displayBalances.take(2).forEach { b ->
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                 Text(b.name, fontSize = 9.sp)
                                 Text("Paid: ${formatAmount(b.paid)} | Due: ${formatAmount(b.balance)}", fontSize = 8.sp)
                             }
                         }
-                        if (displayBalances.size > 3) {
-                            Text("... and ${displayBalances.size - 3} others", fontSize = 8.sp, color = Color.Gray)
+                        if (displayBalances.size > 2) {
+                            Text("... and ${displayBalances.size - 2} others", fontSize = 8.sp, color = Color.Gray)
                         }
                     }
                 }
                 
                 Spacer(modifier = Modifier.height(16.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
                     Button(
                         onClick = {
-                            val uri = generateAndSaveReportPdf(
-                                context = context,
-                                group = group,
-                                expenses = expenses,
-                                balances = balances,
-                                selectedParticipant = selectedParticipantFilter,
-                                showChart = true,
-                                showWhoPaid = true,
-                                showWhen = true,
-                                showInvolves = true,
-                                showSummary = true
-                            )
-                            if (uri != null) {
-                                Toast.makeText(context, "Statement saved to Downloads folder!", Toast.LENGTH_LONG).show()
-                                openReportPdf(context, uri)
+                            if (exportFormatIsPdf) {
+                                val uri = generateAndSaveReportPdf(
+                                    context = context,
+                                    group = group,
+                                    expenses = expenses,
+                                    balances = balances,
+                                    selectedParticipant = selectedParticipantFilter,
+                                    showChart = true,
+                                    showWhoPaid = true,
+                                    showWhen = true,
+                                    showInvolves = true,
+                                    showSummary = true
+                                )
+                                if (uri != null) {
+                                    Toast.makeText(context, "Statement saved to Downloads folder!", Toast.LENGTH_LONG).show()
+                                    openReportPdf(context, uri)
+                                } else {
+                                    Toast.makeText(context, "Failed to generate PDF", Toast.LENGTH_SHORT).show()
+                                }
                             } else {
-                                Toast.makeText(context, "Failed to generate PDF", Toast.LENGTH_SHORT).show()
+                                val uri = generateAndSaveReportJpg(
+                                    context = context,
+                                    group = group,
+                                    expenses = expenses,
+                                    balances = balances,
+                                    selectedParticipant = selectedParticipantFilter,
+                                    showChart = true,
+                                    showWhoPaid = true,
+                                    showWhen = true,
+                                    showInvolves = true,
+                                    showSummary = true
+                                )
+                                if (uri != null) {
+                                    Toast.makeText(context, "JPG saved to Downloads folder!", Toast.LENGTH_LONG).show()
+                                } else {
+                                    Toast.makeText(context, "Failed to generate JPG", Toast.LENGTH_SHORT).show()
+                                }
                             }
                             onDismiss()
                         },
-                        colors = ButtonDefaults.buttonColors(containerColor = RoyalBlue)
+                        colors = ButtonDefaults.buttonColors(containerColor = RoyalBlue),
+                        modifier = Modifier.weight(1f),
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 4.dp, vertical = 8.dp)
                     ) {
-                        Text("Download PDF")
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
+                            Icon(imageVector = Icons.Default.Check, contentDescription = "Download", modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Download", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
                     }
-                    TextButton(onClick = onDismiss) {
-                        Text("Cancel", color = Color.Gray)
+
+                    Button(
+                        onClick = {
+                            if (exportFormatIsPdf) {
+                                val uri = generateAndCacheReportPdf(
+                                    context = context,
+                                    group = group,
+                                    expenses = expenses,
+                                    balances = balances,
+                                    selectedParticipant = selectedParticipantFilter,
+                                    showChart = true,
+                                    showWhoPaid = true,
+                                    showWhen = true,
+                                    showInvolves = true,
+                                    showSummary = true
+                                )
+                                if (uri != null) {
+                                    shareReportDirect(context, uri, "application/pdf")
+                                } else {
+                                    Toast.makeText(context, "Failed to share PDF", Toast.LENGTH_SHORT).show()
+                                }
+                            } else {
+                                val uri = generateAndCacheReportJpg(
+                                    context = context,
+                                    group = group,
+                                    expenses = expenses,
+                                    balances = balances,
+                                    selectedParticipant = selectedParticipantFilter,
+                                    showChart = true,
+                                    showWhoPaid = true,
+                                    showWhen = true,
+                                    showInvolves = true,
+                                    showSummary = true
+                                )
+                                if (uri != null) {
+                                    shareReportDirect(context, uri, "image/jpeg")
+                                } else {
+                                    Toast.makeText(context, "Failed to share JPG", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                            onDismiss()
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = CoralAccent),
+                        modifier = Modifier.weight(1f),
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 4.dp, vertical = 8.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
+                            Icon(imageVector = Icons.Default.Share, contentDescription = "Share", modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Share Direct", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
                     }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+                
+                TextButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) {
+                    Text("Cancel", color = Color.Gray)
                 }
             }
         }
@@ -1816,9 +2512,9 @@ fun savePdfToDownloads(context: android.content.Context, pdfDocument: android.gr
     return uri
 }
 
-// Generate a High-Fidelity Real PDF Document matching the visual style perfectly
-fun generateAndSaveReportPdf(
-    context: android.content.Context,
+// Generate a High-Fidelity Real Report drawn on a canvas
+fun drawReportOnCanvas(
+    canvas: android.graphics.Canvas,
     group: BillingGroup?,
     expenses: List<Expense>,
     balances: List<com.example.ui.ParticipantBalance>,
@@ -1828,12 +2524,7 @@ fun generateAndSaveReportPdf(
     showWhen: Boolean,
     showInvolves: Boolean,
     showSummary: Boolean
-): android.net.Uri? {
-    val pdfDocument = android.graphics.pdf.PdfDocument()
-    val pageInfo = android.graphics.pdf.PdfDocument.PageInfo.Builder(595, 842, 1).create()
-    val page = pdfDocument.startPage(pageInfo)
-    val canvas = page.canvas
-    
+) {
     val paint = android.graphics.Paint().apply { isAntiAlias = true }
     
     val titlePaint = android.graphics.Paint().apply {
@@ -1896,6 +2587,8 @@ fun generateAndSaveReportPdf(
 
     val selectedList = if (selectedParticipant == "All" || selectedParticipant == "All Participants") {
         null
+    } else if (selectedParticipant == "None") {
+        emptyList<String>()
     } else {
         selectedParticipant.split(",").map { it.trim() }.filter { it.isNotEmpty() }
     }
@@ -1904,6 +2597,8 @@ fun generateAndSaveReportPdf(
     val groupName = group?.name ?: "July 2026"
     val pdfTitle = if (selectedList == null) {
         groupName
+    } else if (selectedList.isEmpty()) {
+        "$groupName - No Participants"
     } else {
         "$groupName - ${selectedList.joinToString(", ")}"
     }
@@ -2170,13 +2865,203 @@ fun generateAndSaveReportPdf(
     
     val tagline = "manage expenses better ever..."
     canvas.drawText(tagline, tableRight - logoSubTextPaint.measureText(tagline), footerY + 10f, logoSubTextPaint)
+}
 
-    pdfDocument.finishPage(page)
+// Generate a High-Fidelity Real PDF Document matching the visual style perfectly
+fun generateAndSaveReportPdf(
+    context: android.content.Context,
+    group: BillingGroup?,
+    expenses: List<Expense>,
+    balances: List<com.example.ui.ParticipantBalance>,
+    selectedParticipant: String,
+    showChart: Boolean,
+    showWhoPaid: Boolean,
+    showWhen: Boolean,
+    showInvolves: Boolean,
+    showSummary: Boolean
+): android.net.Uri? {
+    val pdfDocument = android.graphics.pdf.PdfDocument()
+    val pageInfo = android.graphics.pdf.PdfDocument.PageInfo.Builder(595, 842, 1).create()
+    val page = pdfDocument.startPage(pageInfo)
+    val canvas = page.canvas
     
+    drawReportOnCanvas(
+        canvas, group, expenses, balances, selectedParticipant,
+        showChart, showWhoPaid, showWhen, showInvolves, showSummary
+    )
+    
+    pdfDocument.finishPage(page)
+    val groupName = group?.name ?: "July_2026"
     val filename = "${groupName.replace(" ", "_")}_Statement.pdf"
     val uri = savePdfToDownloads(context, pdfDocument, filename)
     pdfDocument.close()
     return uri
+}
+
+fun generateAndSaveReportJpg(
+    context: android.content.Context,
+    group: BillingGroup?,
+    expenses: List<Expense>,
+    balances: List<com.example.ui.ParticipantBalance>,
+    selectedParticipant: String,
+    showChart: Boolean,
+    showWhoPaid: Boolean,
+    showWhen: Boolean,
+    showInvolves: Boolean,
+    showSummary: Boolean
+): android.net.Uri? {
+    val width = 595
+    val height = 842
+    val bitmap = android.graphics.Bitmap.createBitmap(width, height, android.graphics.Bitmap.Config.ARGB_8888)
+    val canvas = android.graphics.Canvas(bitmap)
+    
+    canvas.drawColor(android.graphics.Color.WHITE)
+    drawReportOnCanvas(
+        canvas, group, expenses, balances, selectedParticipant,
+        showChart, showWhoPaid, showWhen, showInvolves, showSummary
+    )
+    
+    val groupName = group?.name ?: "July_2026"
+    val filename = "${groupName.replace(" ", "_")}_Statement.jpg"
+    val uri = saveJpgToDownloads(context, bitmap, filename)
+    bitmap.recycle()
+    return uri
+}
+
+fun generateAndCacheReportPdf(
+    context: android.content.Context,
+    group: BillingGroup?,
+    expenses: List<Expense>,
+    balances: List<com.example.ui.ParticipantBalance>,
+    selectedParticipant: String,
+    showChart: Boolean,
+    showWhoPaid: Boolean,
+    showWhen: Boolean,
+    showInvolves: Boolean,
+    showSummary: Boolean
+): android.net.Uri? {
+    val pdfDocument = android.graphics.pdf.PdfDocument()
+    val pageInfo = android.graphics.pdf.PdfDocument.PageInfo.Builder(595, 842, 1).create()
+    val page = pdfDocument.startPage(pageInfo)
+    val canvas = page.canvas
+    
+    drawReportOnCanvas(
+        canvas, group, expenses, balances, selectedParticipant,
+        showChart, showWhoPaid, showWhen, showInvolves, showSummary
+    )
+    
+    pdfDocument.finishPage(page)
+    val groupName = group?.name ?: "July_2026"
+    val filename = "${groupName.replace(" ", "_")}_Statement.pdf"
+    val uri = savePdfToCache(context, pdfDocument, filename)
+    pdfDocument.close()
+    return uri
+}
+
+fun generateAndCacheReportJpg(
+    context: android.content.Context,
+    group: BillingGroup?,
+    expenses: List<Expense>,
+    balances: List<com.example.ui.ParticipantBalance>,
+    selectedParticipant: String,
+    showChart: Boolean,
+    showWhoPaid: Boolean,
+    showWhen: Boolean,
+    showInvolves: Boolean,
+    showSummary: Boolean
+): android.net.Uri? {
+    val width = 595
+    val height = 842
+    val bitmap = android.graphics.Bitmap.createBitmap(width, height, android.graphics.Bitmap.Config.ARGB_8888)
+    val canvas = android.graphics.Canvas(bitmap)
+    
+    canvas.drawColor(android.graphics.Color.WHITE)
+    drawReportOnCanvas(
+        canvas, group, expenses, balances, selectedParticipant,
+        showChart, showWhoPaid, showWhen, showInvolves, showSummary
+    )
+    
+    val groupName = group?.name ?: "July_2026"
+    val filename = "${groupName.replace(" ", "_")}_Statement.jpg"
+    val uri = saveJpgToCache(context, bitmap, filename)
+    bitmap.recycle()
+    return uri
+}
+
+fun saveJpgToDownloads(context: android.content.Context, bitmap: android.graphics.Bitmap, filename: String): android.net.Uri? {
+    val resolver = context.contentResolver
+    val contentValues = android.content.ContentValues().apply {
+        put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, filename)
+        put(android.provider.MediaStore.MediaColumns.MIME_TYPE, "image/jpeg")
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+            put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, android.os.Environment.DIRECTORY_DOWNLOADS)
+        }
+    }
+    
+    val uri = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+        resolver.insert(android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
+    } else {
+        val downloadsDir = android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS)
+        val file = java.io.File(downloadsDir, filename)
+        try {
+            androidx.core.content.FileProvider.getUriForFile(context, "com.example.fileprovider", file)
+        } catch (e: Exception) {
+            android.net.Uri.fromFile(file)
+        }
+    }
+    
+    try {
+        uri?.let {
+            resolver.openOutputStream(it)?.use { outputStream ->
+                bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 95, outputStream)
+            }
+        }
+    } catch (e: Exception) {
+        e.printStackTrace()
+        return null
+    }
+    return uri
+}
+
+fun savePdfToCache(context: android.content.Context, pdfDocument: android.graphics.pdf.PdfDocument, filename: String): android.net.Uri? {
+    try {
+        val cacheDir = java.io.File(context.cacheDir, "reports")
+        if (!cacheDir.exists()) cacheDir.mkdirs()
+        val file = java.io.File(cacheDir, filename)
+        java.io.FileOutputStream(file).use { outputStream ->
+            pdfDocument.writeTo(outputStream)
+        }
+        return androidx.core.content.FileProvider.getUriForFile(context, "com.example.fileprovider", file)
+    } catch (e: Exception) {
+        e.printStackTrace()
+        return null
+    }
+}
+
+fun saveJpgToCache(context: android.content.Context, bitmap: android.graphics.Bitmap, filename: String): android.net.Uri? {
+    try {
+        val cacheDir = java.io.File(context.cacheDir, "reports")
+        if (!cacheDir.exists()) cacheDir.mkdirs()
+        val file = java.io.File(cacheDir, filename)
+        java.io.FileOutputStream(file).use { outputStream ->
+            bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 95, outputStream)
+        }
+        return androidx.core.content.FileProvider.getUriForFile(context, "com.example.fileprovider", file)
+    } catch (e: Exception) {
+        e.printStackTrace()
+        return null
+    }
+}
+
+fun shareReportDirect(context: android.content.Context, uri: android.net.Uri, mimeType: String, subject: String = "WeXpense Statement / Report") {
+    val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+        type = mimeType
+        putExtra(android.content.Intent.EXTRA_STREAM, uri)
+        putExtra(android.content.Intent.EXTRA_SUBJECT, subject)
+        putExtra(android.content.Intent.EXTRA_TEXT, "Hello, please find attached the expense statement report shared directly from WeXpense.")
+        addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    }
+    context.startActivity(android.content.Intent.createChooser(intent, "Share Report Statement"))
 }
 
 // Trigger standard share sheet
@@ -2325,69 +3210,130 @@ fun WebReportPreviewScreen(viewModel: ExpenseViewModel) {
                     }
                 }
 
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(
-                        onClick = {
-                            val uri = generateAndSaveReportPdf(
-                                context,
-                                group,
-                                expenses,
-                                balances,
-                                selectedParticipantFilter,
-                                showChart,
-                                showWhoPaid,
-                                showWhen,
-                                showInvolves,
-                                showSummary
-                            )
-                            if (uri != null) {
-                                lastGeneratedPdfUri = uri
-                                showPDFSuccessDialog = true
-                                Toast.makeText(context, "Statement PDF downloaded successfully!", Toast.LENGTH_SHORT).show()
-                            } else {
-                                Toast.makeText(context, "Failed to generate statement PDF.", Toast.LENGTH_SHORT).show()
-                            }
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF5BC0DE)),
-                        shape = RoundedCornerShape(6.dp),
-                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                        modifier = Modifier.height(32.dp)
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalAlignment = Alignment.End
+                ) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        // PDF Download Button
+                        Button(
+                            onClick = {
+                                val uri = generateAndSaveReportPdf(
+                                    context,
+                                    group,
+                                    expenses,
+                                    balances,
+                                    selectedParticipantFilter,
+                                    showChart,
+                                    showWhoPaid,
+                                    showWhen,
+                                    showInvolves,
+                                    showSummary
+                                )
+                                if (uri != null) {
+                                    lastGeneratedPdfUri = uri
+                                    showPDFSuccessDialog = true
+                                    Toast.makeText(context, "Statement PDF downloaded successfully!", Toast.LENGTH_SHORT).show()
+                                } else {
+                                    Toast.makeText(context, "Failed to generate statement PDF.", Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = RoyalBlue),
+                            shape = RoundedCornerShape(6.dp),
+                            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                            modifier = Modifier.height(28.dp)
                         ) {
-                            Text("PDF", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                            Icon(imageVector = Icons.Default.KeyboardArrowDown, contentDescription = "Download PDF", modifier = Modifier.size(14.dp), tint = Color.White)
+                            Text("Download PDF", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                        }
+
+                        // JPG Download Button
+                        Button(
+                            onClick = {
+                                val uri = generateAndSaveReportJpg(
+                                    context,
+                                    group,
+                                    expenses,
+                                    balances,
+                                    selectedParticipantFilter,
+                                    showChart,
+                                    showWhoPaid,
+                                    showWhen,
+                                    showInvolves,
+                                    showSummary
+                                )
+                                if (uri != null) {
+                                    Toast.makeText(context, "Statement JPG downloaded successfully!", Toast.LENGTH_SHORT).show()
+                                } else {
+                                    Toast.makeText(context, "Failed to generate statement JPG.", Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = RoyalBlue),
+                            shape = RoundedCornerShape(6.dp),
+                            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                            modifier = Modifier.height(28.dp)
+                        ) {
+                            Text("Download JPG", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.White)
                         }
                     }
 
-                    Button(
-                        onClick = {
-                            val uri = generateAndSaveReportPdf(
-                                context,
-                                group,
-                                expenses,
-                                balances,
-                                selectedParticipantFilter,
-                                showChart,
-                                showWhoPaid,
-                                showWhen,
-                                showInvolves,
-                                showSummary
-                            )
-                            if (uri != null) {
-                                shareReportPdf(context, uri)
-                            } else {
-                                Toast.makeText(context, "Please download PDF first.", Toast.LENGTH_SHORT).show()
-                            }
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF5BC0DE)),
-                        shape = RoundedCornerShape(6.dp),
-                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                        modifier = Modifier.height(32.dp)
-                    ) {
-                        Text("Send Email", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        // Share PDF (no pre-download clutter)
+                        Button(
+                            onClick = {
+                                val uri = generateAndCacheReportPdf(
+                                    context,
+                                    group,
+                                    expenses,
+                                    balances,
+                                    selectedParticipantFilter,
+                                    showChart,
+                                    showWhoPaid,
+                                    showWhen,
+                                    showInvolves,
+                                    showSummary
+                                )
+                                if (uri != null) {
+                                    shareReportDirect(context, uri, "application/pdf")
+                                } else {
+                                    Toast.makeText(context, "Failed to share PDF statement.", Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = CoralAccent),
+                            shape = RoundedCornerShape(6.dp),
+                            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                            modifier = Modifier.height(28.dp)
+                        ) {
+                            Text("Share PDF", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                        }
+
+                        // Share JPG (no pre-download clutter)
+                        Button(
+                            onClick = {
+                                val uri = generateAndCacheReportJpg(
+                                    context,
+                                    group,
+                                    expenses,
+                                    balances,
+                                    selectedParticipantFilter,
+                                    showChart,
+                                    showWhoPaid,
+                                    showWhen,
+                                    showInvolves,
+                                    showSummary
+                                )
+                                if (uri != null) {
+                                    shareReportDirect(context, uri, "image/jpeg")
+                                } else {
+                                    Toast.makeText(context, "Failed to share JPG statement.", Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = CoralAccent),
+                            shape = RoundedCornerShape(6.dp),
+                            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                            modifier = Modifier.height(28.dp)
+                        ) {
+                            Text("Share JPG", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                        }
                     }
                 }
             }
@@ -2458,7 +3404,11 @@ fun WebReportPreviewScreen(viewModel: ExpenseViewModel) {
                                 )
                                 Spacer(modifier = Modifier.height(8.dp))
                                 
-                                val chartBalances = balances.filter { it.paid > 0.0 }
+                                val chartBalances = if (selectedParticipantFilter == "All") {
+                                    balances.filter { it.paid > 0.0 }
+                                } else {
+                                    balances.filter { it.name == selectedParticipantFilter && it.paid > 0.0 }
+                                }
                                 if (chartBalances.isEmpty()) {
                                     Text("No paid expenses to chart.", color = TextSecondary, fontSize = 10.sp, modifier = Modifier.padding(8.dp).align(Alignment.CenterHorizontally))
                                 } else {
@@ -2658,7 +3608,12 @@ fun WebReportPreviewScreen(viewModel: ExpenseViewModel) {
                         Text("Paid", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = TextPrimary, modifier = Modifier.weight(1f))
                         Text("Due", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = TextPrimary, modifier = Modifier.weight(1f))
                     }
-                    balances.forEach { b ->
+                    val filteredSummaryBalances = if (selectedParticipantFilter == "All") {
+                        balances
+                    } else {
+                        balances.filter { it.name == selectedParticipantFilter }
+                    }
+                    filteredSummaryBalances.forEach { b ->
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -2790,6 +3745,230 @@ fun WebReportPreviewScreen(viewModel: ExpenseViewModel) {
             },
             containerColor = SurfaceLight
         )
+    }
+}
+
+// ABOUT DEVELOPER SCREEN
+@Composable
+fun AboutDeveloperScreen(viewModel: ExpenseViewModel) {
+    val context = LocalContext.current
+    val imageResId = remember {
+        context.resources.getIdentifier("img_sieam_hasan", "drawable", context.packageName)
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        // Hero Section Card
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = SurfaceLight),
+            shape = RoundedCornerShape(24.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // Developer Photo / Avatar
+                if (imageResId != 0) {
+                    Card(
+                        shape = RoundedCornerShape(20.dp),
+                        border = androidx.compose.foundation.BorderStroke(3.dp, RoyalBlue),
+                        modifier = Modifier
+                            .size(160.dp)
+                            .clip(RoundedCornerShape(20.dp))
+                    ) {
+                        androidx.compose.foundation.Image(
+                            painter = androidx.compose.ui.res.painterResource(id = imageResId),
+                            contentDescription = "Sieam Hasan",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                        )
+                    }
+                } else {
+                    // Modern placeholder avatar with a stylish gradient & initials
+                    Box(
+                        modifier = Modifier
+                            .size(160.dp)
+                            .background(
+                                brush = androidx.compose.ui.graphics.Brush.linearGradient(
+                                    colors = listOf(RoyalBlue, CoralAccent)
+                                ),
+                                shape = RoundedCornerShape(24.dp)
+                            )
+                            .border(3.dp, Color.White, RoundedCornerShape(24.dp)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                text = "SH",
+                                fontSize = 48.sp,
+                                fontWeight = FontWeight.Black,
+                                color = Color.White
+                            )
+                            Text(
+                                text = "Sieam Hasan",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White.copy(alpha = 0.85f)
+                            )
+                        }
+                    }
+                    
+                    Spacer(modifier = Modifier.height(8.dp))
+                    // Helpful Hint for developer
+                    Text(
+                        text = "💡 Dev Tip: Put 'img_sieam_hasan' JPG/PNG in drawable resources to show your actual photo here!",
+                        fontSize = 11.sp,
+                        color = TextSecondary,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                        modifier = Modifier.padding(horizontal = 8.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Text(
+                    text = "Sieam Hasan",
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = RoyalBlue
+                )
+
+                Text(
+                    text = "Lead Developer",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = CoralAccent,
+                    modifier = Modifier.padding(top = 2.dp)
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                androidx.compose.material3.HorizontalDivider(color = BorderColor.copy(alpha = 0.5f))
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Text(
+                    text = "Hello! I am the developer behind WeXpense. I created this application to provide a powerful, highly-optimized, offline-first group billing and split-sharing solution. From PDF/JPG statement exports to advanced bill distributions, every aspect is designed for smooth everyday use.",
+                    fontSize = 13.sp,
+                    color = TextPrimary,
+                    lineHeight = 20.sp,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+            }
+        }
+
+        // Contact & Bug Report Section Card
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = SurfaceLight),
+            shape = RoundedCornerShape(20.dp),
+            border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor)
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.BugReport,
+                        contentDescription = "Bug report icon",
+                        tint = StatusRed,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Text(
+                        text = "Found a bug or have questions?",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = RoyalBlue
+                    )
+                }
+
+                Text(
+                    text = "If you encounter any issues, bugs, or have suggestions for improvements, please reach out directly via email. I would love to hear your feedback!",
+                    fontSize = 12.sp,
+                    color = TextSecondary,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    lineHeight = 18.sp
+                )
+
+                Button(
+                    onClick = {
+                        val intent = android.content.Intent(android.content.Intent.ACTION_SENDTO).apply {
+                            data = android.net.Uri.parse("mailto:info.sieam@gmail.com")
+                            putExtra(android.content.Intent.EXTRA_SUBJECT, "WeXpense App - Bug Report & Feedback")
+                        }
+                        try {
+                            context.startActivity(intent)
+                        } catch (e: Exception) {
+                            Toast.makeText(context, "No email client found", Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = RoyalBlue),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(44.dp)
+                        .testTag("email_developer_button")
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Email,
+                            contentDescription = "Email icon",
+                            tint = Color.White,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Text(
+                            text = "Email: info.sieam@gmail.com",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                    }
+                }
+            }
+        }
+
+        // App Information Card
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = SurfaceLight),
+            shape = RoundedCornerShape(16.dp),
+            border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(text = "App Version", fontSize = 12.sp, color = TextSecondary)
+                    Text(text = "v1.1.0", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = RoyalBlue)
+                }
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(text = "Environment", fontSize = 12.sp, color = TextSecondary)
+                    Text(text = "Production Ready", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = StatusGreen)
+                }
+            }
+        }
     }
 }
 
@@ -3349,7 +4528,12 @@ fun AddEditExpenseScreen(
 
 // PROFILE DIALOG
 @Composable
-fun ProfileDialog(userName: String, onDismiss: () -> Unit) {
+fun ProfileDialog(userName: String, viewModel: ExpenseViewModel, onDismiss: () -> Unit) {
+    val isConnected by viewModel.isGoogleDriveConnected.collectAsState()
+    val email by viewModel.googleDriveEmail.collectAsState()
+    val lastSync by viewModel.googleDriveLastSync.collectAsState()
+    var showSyncFromProfile by remember { mutableStateOf(false) }
+
     Dialog(onDismissRequest = onDismiss) {
         Card(
             colors = CardDefaults.cardColors(containerColor = SurfaceLight),
@@ -3375,7 +4559,7 @@ fun ProfileDialog(userName: String, onDismiss: () -> Unit) {
                     fontSize = 13.sp,
                     color = Color.Gray
                 )
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(20.dp))
                 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -3391,11 +4575,90 @@ fun ProfileDialog(userName: String, onDismiss: () -> Unit) {
                     }
                 }
                 
+                Spacer(modifier = Modifier.height(20.dp))
+                androidx.compose.material3.HorizontalDivider(color = Color.Black.copy(alpha = 0.08f), thickness = 1.dp)
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Cloud Sync google drive backup card
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (isConnected) StatusGreen.copy(alpha = 0.06f) else RoyalBlue.copy(alpha = 0.05f)
+                    ),
+                    shape = RoundedCornerShape(12.dp),
+                    border = androidx.compose.foundation.BorderStroke(
+                        width = 1.dp,
+                        color = if (isConnected) StatusGreen.copy(alpha = 0.2f) else RoyalBlue.copy(alpha = 0.1f)
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { showSyncFromProfile = true }
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .background(
+                                    color = if (isConnected) StatusGreen.copy(alpha = 0.15f) else RoyalBlue.copy(alpha = 0.1f),
+                                    shape = CircleShape
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.CloudSync,
+                                contentDescription = "Backup",
+                                tint = if (isConnected) StatusGreen else RoyalBlue,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Google Drive Backup",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp,
+                                color = RoyalBlue
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = if (isConnected) "Connected: $email" else "Connect Google for backup your data",
+                                fontSize = 11.sp,
+                                color = if (isConnected) StatusGreen else Color.Gray,
+                                fontWeight = if (isConnected) FontWeight.SemiBold else FontWeight.Normal
+                            )
+                            if (isConnected) {
+                                Text(
+                                    text = "Last synced: $lastSync",
+                                    fontSize = 10.sp,
+                                    color = Color.Gray
+                                )
+                            }
+                        }
+                        Icon(
+                            imageVector = Icons.Default.KeyboardArrowDown,
+                            contentDescription = "Configure",
+                            tint = RoyalBlue,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+
                 Spacer(modifier = Modifier.height(24.dp))
-                Button(onClick = onDismiss, colors = ButtonDefaults.buttonColors(containerColor = RoyalBlue)) {
-                    Text("Done")
+                Button(
+                    onClick = onDismiss,
+                    colors = ButtonDefaults.buttonColors(containerColor = RoyalBlue),
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text("Close", color = Color.White)
                 }
             }
         }
+    }
+
+    if (showSyncFromProfile) {
+        SyncCloudDialog(viewModel = viewModel, onDismiss = { showSyncFromProfile = false })
     }
 }

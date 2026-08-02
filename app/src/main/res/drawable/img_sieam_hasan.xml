@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="200dp"
+    android:height="200dp"
+    android:viewportWidth="200"
+    android:viewportHeight="200">
+
+    <!-- 1. Background Gradient -->
+    <path
+        android:pathData="M0,0h200v200h-200z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="0"
+                android:startY="0"
+                android:endX="200"
+                android:endY="200"
+                android:type="linear">
+                <item android:offset="0" android:color="#213B7F" />
+                <item android:offset="0.5" android:color="#3B5BA5" />
+                <item android:offset="1" android:color="#F07152" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Background Decorative Circle Grid/Sun -->
+    <path
+        android:pathData="M100,100m-70,0a70,70 0,1 1,140 0a70,70 0,1 1,-140 0"
+        android:fillColor="#ffffff"
+        android:fillAlpha="0.08"/>
+
+    <!-- 2. Shoulders & Jacket (Red Base) -->
+    <path
+        android:pathData="M25,200 C25,170 50,140 100,140 C150,140 175,170 175,200 Z"
+        android:fillColor="#D32F2F" /> <!-- Dark Red -->
+
+    <!-- Jacket Side Panels (Black parts of jacket) -->
+    <path
+        android:pathData="M25,200 C25,170 45,145 75,145 L70,200 Z"
+        android:fillColor="#1A1A1A" />
+    <path
+        android:pathData="M175,200 C175,170 155,145 125,145 L130,200 Z"
+        android:fillColor="#1A1A1A" />
+
+    <!-- White stripe accents on shoulders -->
+    <path
+        android:pathData="M35,172 L50,152 L55,154 L40,174 Z"
+        android:fillColor="#FFFFFF" />
+    <path
+        android:pathData="M165,172 L150,152 L145,154 L160,174 Z"
+        android:fillColor="#FFFFFF" />
+
+    <!-- 3. Neck and Inner Clothing -->
+    <path
+        android:pathData="M80,140 L120,140 L115,120 L85,120 Z"
+        android:fillColor="#DDA07A" /> <!-- Neck skin tone -->
+
+    <!-- Dark Blue Neck Warmer Muffler / Scarf -->
+    <!-- Wrapped overlapping loops -->
+    <path
+        android:pathData="M70,120 C70,110 130,110 130,120 C130,130 70,135 70,120 Z"
+        android:fillColor="#1A2B4C" />
+    <path
+        android:pathData="M75,125 C75,115 125,115 125,125 C125,135 75,138 75,125 Z"
+        android:fillColor="#121D33" />
+
+    <!-- 4. Face/Head skin base -->
+    <path
+        android:pathData="M75,70 C75,50 125,50 125,70 C125,98 75,98 75,70 Z"
+        android:fillColor="#E6A67E" /> <!-- Friendly warm South Asian skin tone -->
+
+    <!-- Ears -->
+    <path
+        android:pathData="M71,70 C68,66 70,78 75,76 Z"
+        android:fillColor="#DCA078" />
+    <path
+        android:pathData="M129,70 C132,66 130,78 125,76 Z"
+        android:fillColor="#DCA078" />
+
+    <!-- Nose -->
+    <path
+        android:pathData="M98,72 C98,76 102,76 102,72"
+        android:strokeWidth="2"
+        android:strokeColor="#C5855E"
+        android:strokeLineCap="round" />
+
+    <!-- 5. Eyes & Eyebrows -->
+    <!-- Left Eye -->
+    <path
+        android:pathData="M83,67 C86,65 91,65 94,67"
+        android:strokeWidth="2.2"
+        android:strokeColor="#2E1C0C"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M85,63 C88,61 92,61 95,63"
+        android:strokeWidth="1.8"
+        android:strokeColor="#111111"
+        android:strokeLineCap="round" /> <!-- Left Eyebrow -->
+
+    <!-- Right Eye -->
+    <path
+        android:pathData="M106,67 C109,65 114,65 117,67"
+        android:strokeWidth="2.2"
+        android:strokeColor="#2E1C0C"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M105,63 C108,61 112,61 115,63"
+        android:strokeWidth="1.8"
+        android:strokeColor="#111111"
+        android:strokeLineCap="round" /> <!-- Right Eyebrow -->
+
+    <!-- Smile (Mouth with teeth & friendly expression) -->
+    <path
+        android:pathData="M87,83 C92,92 108,92 113,83 Z"
+        android:fillColor="#FFFFFF" /> <!-- Smiling Teeth base -->
+    <path
+        android:pathData="M85,82 C93,89 107,89 115,82"
+        android:strokeWidth="2"
+        android:strokeColor="#A84C32"
+        android:strokeLineCap="round" /> <!-- Smile line -->
+
+    <!-- Mustache (as specified: light mustache, very friendly) -->
+    <path
+        android:pathData="M88,80 C93,78 107,78 112,80"
+        android:strokeWidth="3.5"
+        android:strokeColor="#21150C"
+        android:strokeLineCap="round" />
+
+    <!-- 6. Hair (Stylized modern side-cut crop as in the photo) -->
+    <path
+        android:pathData="M73,63 C70,45 85,32 100,32 C115,32 130,45 127,63 C125,50 115,42 100,42 C85,42 75,50 73,63 Z"
+        android:fillColor="#151515" />
+    <path
+        android:pathData="M75,55 C77,40 123,40 125,55 C120,44 110,38 100,38 C90,38 80,44 75,55 Z"
+        android:fillColor="#262626" /> <!-- Hair highlights -->
+
+    <!-- 7. Jacket Collar details -->
+    <path
+        android:pathData="M75,140 L85,115 L90,140 Z"
+        android:fillColor="#1A1A1A" />
+    <path
+        android:pathData="M125,140 L115,115 L110,140 Z"
+        android:fillColor="#1A1A1A" />
+
+    <!-- Zipper pull-tab -->
+    <path
+        android:pathData="M100,140 L100,155"
+        android:strokeWidth="2.5"
+        android:strokeColor="#D5A432"
+        android:strokeLineCap="round" /> <!-- Gold metallic zipper -->
+    <path
+        android:pathData="M98,155h4v6h-4z"
+        android:fillColor="#D5A432" />
+
+</vector>
