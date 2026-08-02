@@ -170,7 +170,7 @@ abstract class ExpenseDatabase : RoomDatabase() {
                 val instance = Room.databaseBuilder(
                     context.applicationContext,
                     ExpenseDatabase::class.java,
-                    "wexpense_database"
+                    "wexpense_database_v3"
                 )
                 .fallbackToDestructiveMigration()
                 .build()

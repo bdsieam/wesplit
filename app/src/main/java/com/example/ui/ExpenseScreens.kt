@@ -131,6 +131,7 @@ import com.example.ui.theme.TextSecondary
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
+import java.util.Calendar
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -600,11 +601,11 @@ fun MainExpenseAppScreen(
             expense = editingExpense,
             groupMembers = selectedGroup?.members ?: emptyList(),
             onDismiss = { showAddExpenseScreen = false },
-            onSave = { desc, amount, paidBy, date, isAll, splits, category ->
+            onSave = { desc, amount, paidBy, date, isAll, splits, category, attachmentPath ->
                 if (editingExpense == null) {
-                    viewModel.addExpense(desc, amount, paidBy, date, isAll, splits, category)
+                    viewModel.addExpense(desc, amount, paidBy, date, isAll, splits, category, attachmentPath)
                 } else {
-                    viewModel.updateExpense(editingExpense!!.id, desc, amount, paidBy, date, isAll, splits, category)
+                    viewModel.updateExpense(editingExpense!!.id, desc, amount, paidBy, date, isAll, splits, category, attachmentPath)
                 }
                 showAddExpenseScreen = false
             },
@@ -909,11 +910,22 @@ fun ExpenseItemCard(
                     color = TextPrimary
                 )
                 Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = "Paid by ${expense.paidBy}",
-                    fontSize = 13.sp,
-                    color = TextSecondary
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "Paid by ${expense.paidBy}",
+                        fontSize = 13.sp,
+                        color = TextSecondary
+                    )
+                    if (expense.attachmentPath != null) {
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Icon(
+                            imageVector = Icons.Default.AttachFile,
+                            contentDescription = "Has attachment",
+                            tint = StatusGreen,
+                            modifier = Modifier.size(13.dp)
+                        )
+                    }
+                }
             }
 
             Column(horizontalAlignment = Alignment.End) {
@@ -2745,20 +2757,52 @@ fun AddEditExpenseScreen(
         dateMillis: Long,
         isAll: Boolean,
         splits: List<ParticipantSplit>,
-        category: String
+        category: String,
+        attachmentPath: String?
     ) -> Unit,
     onDelete: () -> Unit
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     var description by remember { mutableStateOf(expense?.description ?: "") }
     var amountStr by remember { mutableStateOf(expense?.amount?.let { String.format(Locale.US, "%.2f", it) } ?: "") }
     var paidBy by remember { mutableStateOf(expense?.paidBy ?: groupMembers.firstOrNull() ?: "") }
     var category by remember { mutableStateOf(expense?.category ?: "Food") }
     var dateMillis by remember { mutableStateOf(expense?.dateEpochMillis ?: System.currentTimeMillis()) }
     var isAllParticipants by remember { mutableStateOf(expense?.isAllParticipants ?: true) }
+    var attachmentPath by remember { mutableStateOf(expense?.attachmentPath) }
 
     // Dropdowns
     var payerExpanded by remember { mutableStateOf(false) }
     var categoryExpanded by remember { mutableStateOf(false) }
+
+    // Launcher to select attachment file
+    val selectAttachmentLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        if (uri != null) {
+            attachmentPath = uri.toString()
+            Toast.makeText(context, "Attachment added successfully!", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    // Function to show real DatePickerDialog
+    fun showDatePicker() {
+        val calendar = Calendar.getInstance().apply { timeInMillis = dateMillis }
+        android.app.DatePickerDialog(
+            context,
+            { _, year, month, dayOfMonth ->
+                val selectedCal = Calendar.getInstance().apply {
+                    set(Calendar.YEAR, year)
+                    set(Calendar.MONTH, month)
+                    set(Calendar.DAY_OF_MONTH, dayOfMonth)
+                }
+                dateMillis = selectedCal.timeInMillis
+            },
+            calendar.get(Calendar.YEAR),
+            calendar.get(Calendar.MONTH),
+            calendar.get(Calendar.DAY_OF_MONTH)
+        ).show()
+    }
 
     // Splits state management
     val splits = remember {
@@ -2821,7 +2865,8 @@ fun AddEditExpenseScreen(
                             dateMillis,
                             isAllParticipants,
                             splits.toList(),
-                            category
+                            category,
+                            attachmentPath
                         )
                     }
                 },
@@ -2928,13 +2973,40 @@ fun AddEditExpenseScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 // Attachment
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.clickable { }
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    Icon(imageVector = Icons.Default.AttachFile, contentDescription = "Attach", tint = RoyalBlue)
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text("Attachment", fontSize = 11.sp, color = Color.Gray)
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.clickable { selectAttachmentLauncher.launch("*/*") }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.AttachFile,
+                            contentDescription = "Attach",
+                            tint = if (attachmentPath != null) StatusGreen else RoyalBlue
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = if (attachmentPath != null) "Attached" else "Attachment",
+                            fontSize = 11.sp,
+                            color = if (attachmentPath != null) StatusGreen else Color.Gray,
+                            fontWeight = if (attachmentPath != null) FontWeight.Bold else FontWeight.Normal
+                        )
+                    }
+                    if (attachmentPath != null) {
+                        IconButton(
+                            onClick = { attachmentPath = null },
+                            modifier = Modifier.size(24.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Cancel,
+                                contentDescription = "Clear attachment",
+                                tint = StatusRed,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
                 }
 
                 Box {
@@ -2944,7 +3016,7 @@ fun AddEditExpenseScreen(
                     ) {
                         Icon(imageVector = Icons.Default.Category, contentDescription = "Category", tint = RoyalBlue)
                         Spacer(modifier = Modifier.height(4.dp))
-                        Text(category, fontSize = 11.sp, color = Color.Gray)
+                        Text(category, fontSize = 11.sp, color = Color.Gray, fontWeight = FontWeight.Bold)
                     }
                     DropdownMenu(
                         expanded = categoryExpanded,
@@ -2963,14 +3035,19 @@ fun AddEditExpenseScreen(
                     }
                 }
 
-                // Date Picker (Mock)
+                // Date Picker
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.clickable { }
+                    modifier = Modifier.clickable { showDatePicker() }
                 ) {
                     Icon(imageVector = Icons.Default.CalendarToday, contentDescription = "Date", tint = RoyalBlue)
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text("Today", fontSize = 11.sp, color = Color.Gray)
+                    Text(
+                        text = SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(Date(dateMillis)),
+                        fontSize = 11.sp,
+                        color = Color.Gray,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
             }
 
